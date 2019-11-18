@@ -12,16 +12,6 @@ namespace StoreAuthentication.Extensions
 {
     public static class AuthenticationCollectionExtension
     {
-        /// <summary>
-        /// Add cookie backed JWT authentication to the application using the passed in validation parameters
-        /// </summary>
-        /// <param name="services"></param>
-        /// <param name="tokenValidationParams"></param>
-        /// <param name="applicationDiscriminator">
-        /// An optional unique string that identifies the application to the data protection api for encryption key isolation.
-        /// </param>
-        /// <param name="authUrlOptions"></param>
-        /// <returns></returns>
         public static IServiceCollection AddJwtAuthenticationWithProtectedCookie(this IServiceCollection services,
             TokenValidationParameters tokenValidationParams,
             string authenticationScheme,
@@ -41,18 +31,10 @@ namespace StoreAuthentication.Extensions
             }
 
             var hostingEnvironment = services.BuildServiceProvider().GetService<IHostingEnvironment>();
-            // The JwtAuthTicketFormat representing the cookie needs an IDataProtector and
-            // IDataSerialiser to correctly encrypt/decrypt and serialise/deserialise the payload
-            // respectively. This requirement is enforced by ISecureDataFormat interface in ASP.NET
-            // Core. Read more about ASP.NET Core Data Protection API here:
-            // https://docs.microsoft.com/en-us/aspnet/core/security/data-protection/
-            // NB: This is only required if you're using JWT with Cookie based authentication, for
-            //     cookieless auth (such as with a Web API) the data protection and serialisation
-            //     dependencies won't be needed. You simply need to set the validation params and add
-            //     the token generator dependencies and use the right authentication extension below.
-            services.AddDataProtection(options => options.ApplicationDiscriminator =
-                $"{applicationDiscriminator ?? hostingEnvironment.ApplicationName}")
-                .SetApplicationName($"{applicationDiscriminator ?? hostingEnvironment.ApplicationName}");
+
+            var appDiscriminator = $"{applicationDiscriminator ?? hostingEnvironment.ApplicationName}";
+            services.AddDataProtection(options => options.ApplicationDiscriminator = appDiscriminator)
+                .SetApplicationName(appDiscriminator);
             services.AddScoped<IDataSerializer<AuthenticationTicket>, TicketSerializer>();
             services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>(serviceProvider =>
                 new JwtTokenGenerator(tokenValidationParams.ToTokenOptions(1)));
@@ -64,22 +46,7 @@ namespace StoreAuthentication.Extensions
             })
             .AddCookie(options =>
             {
-                // cookie expiration should be set the same as the token expiry (the default is 5
-                // mins). The token generator doesn't provide auto-refresh of an expired token so the
-                // user will be logged out the next time they try to access a secured endpoint. They
-                // will simply have to re-login and acquire a new token and by extension a new cookie.
-                // Perhaps in the future I can add some kind of hooks in the token generator that can
-                // let the referencing application know that the token has expired and the developer
-                // can then request a new token without the user having to re-login.
                 options.Cookie.Expiration = TimeSpan.FromMinutes(1);
-                // Specify the TicketDataFormat to use to validate/create the ASP.NET authentication
-                // ticket. Its important that the same validation parameters are passed to this class
-                // so that the token validation works correctly. The framework will call the
-                // appropriate methods in JwtAuthTicketFormat based on whether the cookie is being
-                // sent out or coming in from a previously authenticated user. Please bear in mind
-                // that if the incoming token is invalid (may be it was tampered or spoofed) the
-                // Unprotect() method in JwtAuthTicketFormat will simply return null and the
-                // authentication will fail.
                 options.TicketDataFormat = new JwtAuthTicketFormat(tokenValidationParams,
                     services.BuildServiceProvider().GetService<IDataSerializer<AuthenticationTicket>>(),
                     services.BuildServiceProvider().GetDataProtector(new[]
@@ -99,7 +66,7 @@ namespace StoreAuthentication.Extensions
             .AddJwtBearer(o =>
             {
                 o.TokenValidationParameters = tokenValidationParams;
-            }); ;
+            });
 
             return services;
         }
