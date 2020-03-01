@@ -80,7 +80,8 @@ namespace StoreService
                 var accessTokenResult = tokenGenerator.GenerateAccessTokenWithClaimsPrincipal(
                     userCredentials.EmailAddress,
                     AddMyClaims(user));
-                context.HttpContext.SignInAsync(accessTokenResult.ClaimsPrincipal,
+                context.HttpContext.SignInAsync(
+                    accessTokenResult.ClaimsPrincipal,
                     accessTokenResult.AuthProperties);
 
                 accessToken = accessTokenResult?.AccessToken?.ToString() ?? "";

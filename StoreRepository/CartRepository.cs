@@ -3,87 +3,113 @@ using StoreModel.Generic;
 using StoreModel.Store;
 using StoreRepository.Interface;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace StoreRepository
 {
     public class CartRepository : BaseRepository, ICartRepository
     {
-        private readonly static int siteId = 12;
-
         public CartRepository(IOptions<AppSettings> appSettings) : base(appSettings)
+        { }
+
+        public Cart GetCartAll(Guid uid, bool isVisitor)
         {
+            var cart = GetCart(uid, isVisitor);
+            cart.CartItems = GetCartItems(cart.Uid);
+
+            return cart;
         }
 
-        public Cart GetCart(Guid userUid)
+        public Cart GetCart(Guid uid, bool isVisitor)
         {
-            return new Cart();
-        }
-        public Cart GetCart(Guid? userUid, Guid? cartUid)
-        {
+            var userType = isVisitor ? "VisitorUid" : "UserUid";
+            string sql = $"SELECT * FROM Cart WHERE {userType} = @Uid;";
 
-            return new Cart();
+            return Query<Cart>(sql, new { Uid = uid }).FirstOrDefault();
         }
-        public Cart AddCart(Cart cart)
+
+        public List<CartItem> GetCartItems(Guid cartUid)
         {
-            return new Cart();
+            const string sql = "SELECT * FROM CartItem WHERE [CartId] = (SELECT Id FROM Cart WHERE Uid = @CartUid);";
+
+            return Query<CartItem>(sql, new { CartUid = cartUid }).ToList();
         }
-        public Cart AddCartItem(StoreItem item)
+
+        public List<CartItem> GetCartItems(Guid uid, bool isVisitor)
         {
-            var sql = @"
-DECLARE @StoreQuantity INT = (SELECT Quantity FROM StoreItemInfo WHERE [Uid] = @StoreItemUid),
-		@ItemId INT = (SELECT Id FROM StoreItemInfo WHERE [Uid] = @StoreItemUid),
-		@CartId INT = NULL;
+            var userType = isVisitor ? "VisitorUid" : "UserUid";
+            string sql = $@"
+DECLARE @CartId INT;
+SELECT @CartId = [Uid] FROM Cart WHERE ${userType} = @Uid;
 
-IF @UserUid IS NOT NULL 
-BEGIN 
-	IF NOT EXISTS(SELECT * FROM Cart WHERE UserUid = @UserUid)
-	BEGIN
-		INSERT INTO CART
-		SELECT NEWID(), GETDATE(), GETDATE(), @VisitorUid, @UserUid
-	END
+SELECT * FROM CartItem WHERE CartId = @CartId;";
+            return Query<CartItem>(sql, new { Uid = uid }).ToList();
+        }
+        
+        public Cart CreateCart(Guid? userUid = null, Guid? visitorUid = null)
+        {
+            const string sql = @"
+DECLARE	@UserId INT = (SELECT Id From SiteUser WHERE [Uid] = @UserUid);
 
-	SET @CartId = (SELECT Id FROM Cart WHERE UserUid = @UserUid) 
+IF NOT EXISTS(SELECT * FROM Cart WHERE VisitorUid = @VisitorUid OR UserUid = @UserUid)
+BEGIN
+    DECLARE @CreatedCart TABLE ([CartUid] UNIQUEIDENTIFIER);
+    INSERT INTO Cart 
+    OUTPUT INSERTED.[Uid] INTO @CreatedCart
+    SELECT NEWID(), GETDATE(), GETDATE(), @VisitorUid, @UserUid, @UserId;
 END
+ELSE
+    
+SELECT * FROM Cart WHERE CartUid;";
+            return Query<Cart>(sql,
+                new {
+                    UserUid = userUid.Value,
+                    VisitorUid = visitorUid.Value
+                }).FirstOrDefault();
+        }
 
-IF @VisitorUid IS NOT NULL 
+        public CartItem AddCartItem(StoreItem item, int cartId)
+        {
+            const string sql = @"
+DECLARE @CreatedCartItem TABLE ([Id] UNIQUEIDENTIFIER);
+		
+IF EXISTS(SELECT * FROM CartItem WHERE CartId = @CartId AND ItemId = @ItemId)
 BEGIN 
-	IF NOT EXISTS(SELECT * FROM Cart WHERE VisitorUid = @VisitorUid)
-	BEGIN
-		INSERT INTO CART
-		SELECT NEWID(), GETDATE(), GETDATE(), @VisitorUid, @UserUid
-	END
-	
-	SET @CartId = (SELECT Id FROM Cart WHERE UserUid = @VisitorUid) 
+	UPDATE CartItem 
+	SET Quantity = @Quantity 
+	OUTPUT INSERTED.Id INTO @CreatedCartItem
+	WHERE CartId = @CartId AND ItemId = @ItemId
 END
-
-IF(@CartId IS NOT NULL)
-    BEGIN
-    IF EXISTS(SELECT * FROM CartItem WHERE CartId = @CartId AND ItemId = @ItemId)
-    BEGIN 
-	    UPDATE CartItem SET Quantity = (CASE
-		    WHEN @Quantity + Quantity > @StoreQuantity THEN @StoreQuantity
-		    ELSE @Quantity + Quantity
-	    END)  WHERE CartId = @CartId AND ItemId = @ItemId; 
-    END 
-    ELSE 
-    BEGIN
-	    INSERT INTO CartItem
-	    SELECT TOP 1 NEWID(), @CartId, @ItemId, @Quantity, GETDATE(), GETDATE(), 1;
-    END
+ELSE 
+BEGIN
+	INSERT INTO CartItem 
+	OUTPUT INSERTED.Id INTO @CreatedCartItem
+	SELECT NEWID(), @CartId, @ItemId, @Quantity, GETDATE(), GETDATE(), 1 
 END;
+
+SELECT * FROM CartItem WHERE Id = (SELECT TOP 1 Id FROM @CreatedCartItem);
 ";
 
-            var cartItem = Query<StoreItem>(sql, new { StoreItemUid = item.Uid, Quantity = item.Quantity, Price = item.Price }).ToList();
-            return new Cart();
+            var cartItem = Query<CartItem>(sql,
+                new
+                {
+                    CartId = cartId,
+                    ItemId = item.Id,
+                    item.Quantity
+                })
+                .FirstOrDefault();
+            return cartItem;
         }
+
         public Cart EditCart(Cart cart)
         {
             return new Cart();
         }
-        public Cart EditCartItem(Cart cart)
+
+        public CartItem EditCartItem(Cart cart)
         {
-            var sql = @"
+            const string sql = @"
 
 DECLARE @UserUid UNIQUEIDENTIFIER = (SELECT [Uid] FROM SiteUser WHERE EmailAddress = 'testuser11@addabadda.com'),
 		@VisitorUid UNIQUEIDENTIFIER = '52283B5C-A03F-4C53-8C58-986776F80014',
@@ -141,12 +167,13 @@ SELECT sii.Id, sii.[Uid], sii.StoreId, si.Id as StoreItemId, si.[Uid] StoreItemU
     AND ci.Active = 1
 	AND c.Id = @CartId;
 ";
-            return new Cart();
+            return new CartItem();
         }
+
         public bool RemoveCart(Cart cart)
         {
             bool success = false;
-            var sql = @"";
+            const string sql = "";
 
             try
             {
@@ -158,20 +185,45 @@ SELECT sii.Id, sii.[Uid], sii.StoreId, si.Id as StoreItemId, si.[Uid] StoreItemU
             }
             return success;
         }
-        public bool RemoveCartItem(Cart cart)
+
+        public bool RemoveCartItem(CartItem cartItem)
         {
             bool success = false;
-            var sql = @"";
+            const string sql = "";
 
             try
             {
-                success = Convert.ToBoolean(Execute(sql, cart));
+                success = Convert.ToBoolean(Execute(sql, cartItem));
             }
             catch (Exception ex)
             {
                 //Log Exception
             }
             return success;
+        }
+
+        public bool CartExists(Guid userUid, Guid visitorUid)
+        {
+            const string sql = "SELECT EXIST(SELECT * FROM Cart WHERE UserUid = @UserUid OR VisitorUid = @VisitorUid);";
+            return Query<bool>(sql,
+                new
+                {
+                    UserUid = userUid,
+                    VisitorUid = visitorUid
+                })
+                .FirstOrDefault();
+        }
+
+        public Cart MergeCarts(Guid userUid, Guid visitorUid)
+        {
+            const string sql = "";
+            return Query<Cart>(sql,
+                new
+                {
+                    UserUid = userUid,
+                    VisitorUid = visitorUid
+                })
+                .FirstOrDefault();
         }
     }
 }

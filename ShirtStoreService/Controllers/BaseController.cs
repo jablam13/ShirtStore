@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
-using System.Linq;
 using System.Security.Claims;
 using StoreModel.Generic;
 using StoreService.Interface;
@@ -18,7 +17,7 @@ namespace ShirtStoreService.Controllers
     public class BaseController : Controller
     {
 
-        protected Guid visitorUid;
+        protected Guid visitorUid = Guid.Empty;
         protected Guid userUid = Guid.Empty;
         private readonly AppSettings _appSettings;
         private readonly IAccountService accountService;
@@ -33,10 +32,19 @@ namespace ShirtStoreService.Controllers
 
         public override void OnActionExecuting(ActionExecutingContext context)
         {
-            if (visitorUid == null || visitorUid == Guid.Empty)
+            if (visitorUid == Guid.Empty)
             {
-                GetCookie();
+                visitorUid = GetCookie();
             }
+        }
+
+        public Guid GetVisitorUid()
+        {
+            if (visitorUid == Guid.Empty)
+            {
+                visitorUid = GetCookie();
+            }
+            return visitorUid;
         }
 
         public Guid GetUserUid()

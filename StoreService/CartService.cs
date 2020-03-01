@@ -1,4 +1,5 @@
 ﻿using StoreModel.Store;
+using StoreRepository.Interface;
 using StoreService.Interface;
 using System;
 using System.Collections.Generic;
@@ -8,38 +9,69 @@ namespace StoreService
 {
     public class CartService : BaseService, ICartService
     {
-        public CartService()
-        {
+        private readonly ICartRepository cartRep;
 
+        public CartService(
+            ICartRepository _cartRep)
+        {
+            cartRep = _cartRep;
         }
 
-        public Cart GetCart(Guid userUid)
+        public Cart GetCartAll(Guid userUid, Guid visitorUid)
         {
-            return new Cart();
+            Guid uid = visitorUid;
+            bool isVisitor = true;
+
+            if (userUid == Guid.Empty && visitorUid == Guid.Empty)
+                return new Cart();
+
+            if (userUid != Guid.Empty)
+                uid = userUid;
+
+            return cartRep.GetCartAll(uid, isVisitor);
         }
 
-        public Cart GetCart(Guid? userUid, Guid? cartUid)
+        public Cart GetCart(Guid userUid, Guid visitorUid)
         {
-            return new Cart();
+            Guid uid = visitorUid;
+            bool isVisitor = true;
+
+            if (userUid == Guid.Empty && visitorUid == Guid.Empty)
+                return new Cart();
+
+            if (userUid != Guid.Empty)
+                uid = userUid;
+
+            return cartRep.GetCartAll(uid, isVisitor);
         }
 
-        public Cart AddCart(Cart cart)
+        public List<CartItem> GetCartItems(Guid cartUid)
         {
-            return new Cart();
+            return cartRep.GetCartItems(cartUid);
         }
 
-        public Cart AddCartItem(StoreItem cart)
+        public List<CartItem> GetCartItems(Guid uid, bool isVisitor)
         {
-            return new Cart();
+            return cartRep.GetCartItems(uid, isVisitor);
+        }
+
+        public Cart CreateCart(Guid userUid, Guid visitorUid)
+        {
+            return cartRep.CreateCart(userUid, visitorUid);
+        }
+
+        public CartItem AddCartItem(StoreItem cart)
+        {
+            return new CartItem();
         }
 
         public Cart EditCart(Cart cart)
         {
             return new Cart();
         }
-        public Cart EditCartItem(Cart cart)
+        public CartItem EditCartItem(Cart cart)
         {
-            return new Cart();
+            return new CartItem();
         }
         public bool RemoveCart(Cart cart)
         {
@@ -47,11 +79,18 @@ namespace StoreService
 
             return success;
         }
-        public bool RemoveCartItem(Cart cart)
+        public bool RemoveCartItem(CartItem cart)
         {
             bool success = false;
 
             return success;
+        }
+
+        public Cart MergeCarts(Guid userUid, Guid visitorUid)
+        {
+
+
+            return new Cart();
         }
     }
 }

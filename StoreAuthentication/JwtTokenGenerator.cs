@@ -23,7 +23,7 @@ namespace StoreAuthentication
         {
             this.tokenOptions = tokenOptions ??
                 throw new ArgumentNullException(
-                    $"An instance of valid {nameof(TokenOption)} must be passed in order to generate a JWT!"); ;
+                    $"An instance of valid {nameof(TokenOption)} must be passed in order to generate a JWT!");
         }
 
         public string GenerateAccessToken(string userName, IEnumerable<Claim> userClaims)

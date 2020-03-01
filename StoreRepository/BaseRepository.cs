@@ -81,7 +81,6 @@ namespace StoreRepository
         {
             if (string.IsNullOrEmpty(fromFile) || fromLine == 0) return sql;
 
-
             var split = fromFile.LastIndexOf(@"\", StringComparison.Ordinal) - 1;
             if (split < 0) return sql;
 
@@ -100,7 +99,6 @@ namespace StoreRepository
             var sb = new StringBuilder();
             foreach (System.Reflection.PropertyInfo property in obj.GetType().GetProperties())
             {
-
                 sb.Append(property.Name);
                 sb.Append(": ");
                 if (property.GetIndexParameters().Length > 0)

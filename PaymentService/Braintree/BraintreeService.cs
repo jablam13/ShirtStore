@@ -81,19 +81,19 @@ namespace PaymentService.Braintree
         }
 
 
-        public Result<Transaction> Order(Checkout model, Users user)
+        public Result<Transaction> Order(Checkout checkout, Users user)
         {
-            return ProcessTransaction(model, user);
-        }
-
-        private Result<Transaction> ProcessTransaction(Checkout checkout, Users user)
-        {
-            if (gateway == null) { GetGateway(); }
-
             var customerRequest = InitCustomerRequest(user);
             var shippingRequest = InitShippingAddressRequest(checkout);
             var billingRequest = InitBillingAddressRequest(checkout);
             var transactionRequest = InitTransactionRequest(checkout, customerRequest, shippingRequest, billingRequest);
+
+            return ProcessTransaction(transactionRequest);
+        }
+
+        private Result<Transaction> ProcessTransaction(TransactionRequest transactionRequest)
+        {
+            if (gateway == null) { GetGateway(); }
 
             Result<Transaction> result = gateway.Transaction.Sale(transactionRequest);
 

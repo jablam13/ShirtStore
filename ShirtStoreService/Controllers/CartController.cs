@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using StoreModel.Generic;
+using StoreModel.Store;
 using StoreService.Interface;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -26,24 +27,23 @@ namespace ShirtStoreService.Controllers
             cartService = _cartService;
         }
 
-        // GET: api/<controller>
-        [HttpGet]
-        public IEnumerable<string> Get()
-        {
-            return new string[] { "value1", "value2" };
-        }
-
         // GET api/<controller>/5
-        [HttpGet("{id}")]
-        public string Get(int id)
+        [HttpGet("")]
+        public Cart Get()
         {
-            return "value";
+            var userUid = GetUserUid();
+            var visitorUid = GetVisitorUid();
+
+            return cartService.GetCart(userUid, visitorUid);
         }
 
         // POST api/<controller>
-        [HttpPost]
-        public void Post([FromBody]string value)
+        [HttpPost("addtocart")]
+        public CartItem AddCartItem([FromBody]StoreItem item)
         {
+            var addedCartItem = cartService.AddCartItem(item);
+
+            return addedCartItem;
         }
 
         // PUT api/<controller>/5

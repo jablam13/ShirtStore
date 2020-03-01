@@ -9,16 +9,12 @@ namespace StoreRepository
 {
     public class AddressRepository : BaseRepository, IAddressRepository
     {
-        private readonly static int siteId = 12;
-
         public AddressRepository(IOptions<AppSettings> appSettings) : base(appSettings)
-        {
-
-        }
+        { }
 
         public UserAddress CreateAddress(UserAddress address)
         {
-            var sql = @"
+            const string sql = @"
 DECLARE @InsertedAddress TABLE ([Id] INT);
 
 --Insert new address
@@ -69,8 +65,8 @@ SELECT TOP 1 * FROM [Address] WHERE Id = (SELECT TOP 1 Id FROM @InsertedAddress)
 
             var a = Query<UserAddress>(sql, new
             {
-                UserId = address.UserId,
-                Token = address.Token,
+                address.UserId,
+                address.Token,
                 FirstName = address.FirstName.Trim(),
                 LastName = address.LastName.Trim(),
                 Street = address.Street?.Trim(),
@@ -78,8 +74,8 @@ SELECT TOP 1 * FROM [Address] WHERE Id = (SELECT TOP 1 Id FROM @InsertedAddress)
                 City = address.City?.Trim(),
                 StateCode = address.StateCode?.Trim(),
                 ZipCode = address.ZipCode.Trim(),
-                IsBilling = address.IsBilling,
-                PrimaryAddress = address.PrimaryAddress,
+                address.IsBilling,
+                address.PrimaryAddress,
             }).FirstOrDefault();
 
             return a;
@@ -91,13 +87,11 @@ SELECT TOP 1 * FROM [Address] WHERE Id = (SELECT TOP 1 Id FROM @InsertedAddress)
         }
 
         public void RemoveAddress(UserAddress address)
-        {
-
-        }
+        { }
 
         public UserAddress GetAddress(UserAddress address)
         {
-            var sql = @"
+            const string sql = @"
 	SELECT TOP 1 * FROM [Address] WHERE 1=1 AND
 		FirstName = @FirstName AND
 		LastName = @LastName AND 
@@ -110,8 +104,8 @@ SELECT TOP 1 * FROM [Address] WHERE Id = (SELECT TOP 1 Id FROM @InsertedAddress)
 
             var a = Query<UserAddress>(sql, new
             {
-                UserId = address.UserId,
-                Token = address?.Token,
+                address.UserId,
+                address?.Token,
                 FirstName = address.FirstName.Trim(),
                 LastName = address.LastName.Trim(),
                 Street = address.Street?.Trim(),
@@ -119,8 +113,8 @@ SELECT TOP 1 * FROM [Address] WHERE Id = (SELECT TOP 1 Id FROM @InsertedAddress)
                 City = address.City?.Trim(),
                 StateCode = address.StateCode?.Trim(),
                 ZipCode = address.ZipCode.Trim(),
-                IsBilling = address.IsBilling,
-                PrimaryAddress = address.PrimaryAddress,
+                address.IsBilling,
+                address.PrimaryAddress,
             }).FirstOrDefault();
 
             return a;
@@ -130,6 +124,7 @@ SELECT TOP 1 * FROM [Address] WHERE Id = (SELECT TOP 1 Id FROM @InsertedAddress)
         {
             return new UserAddress();
         }
+
         public UserAddress GetAddress(Guid addressUid)
         {
             return new UserAddress();

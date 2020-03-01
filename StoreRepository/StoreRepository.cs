@@ -19,7 +19,7 @@ namespace StoreRepository
 
         public List<Store> GetStores(int userId)
         {
-            var sql = @"
+			const string sql = @"
 SELECT s.Id, s.[Uid],
 s.Name, s.[Description], s.LargeImg, s.SmallImg, s.Active, s.CreatedDate, s.LastModifiedDate
 FROM Store s 
@@ -33,9 +33,10 @@ AND s.Active = 1;
 
             return stores;
         }
+
         public Store GetStoreAll(Guid? userUid, Guid? visitorUid, Guid storeGuid)
         {
-            var sql = @"
+            const string sql = @"
 SELECT s.Id, s.[Uid],
 s.Name, s.[Description], s.LargeImg, s.SmallImg, s.Active, s.CreatedDate, s.LastModifiedDate
 FROM Store s 
@@ -54,7 +55,7 @@ AND s.Active = 1;
 
         public Store GetStore(Guid storeUid)
         {
-            var sql = @"
+            const string sql = @"
 SELECT s.Id, s.[Uid], u.Id as CreatorId, u.FirstName + ' ' + SUBSTRING(u.LastName,0,2) + '.' as CreatorName, 
 s.Name, s.[Description], s.LargeImg, s.SmallImg, s.Active, s.CreatedDate, s.LastModifiedDate
 FROM Store s 
@@ -66,15 +67,12 @@ AND sc.SiteCollectionId = @SiteId
 AND s.Active = 1;
 ";
 
-            var store = Query<Store>(sql, new { StoreUid = storeUid, SiteId = siteId }).FirstOrDefault();
-
-
-            return store;
+            return Query<Store>(sql, new { StoreUid = storeUid, SiteId = siteId }).FirstOrDefault();
         }
 
         public List<StoreItem> GetStoreItems(Guid? userUid, Guid? visitorUid, Guid storeUid, int? categoryId)
         {
-            var sql = @"
+            const string sql = @"
 ;WITH UserCartModel (Id, Uid, Price, Quantity, StoreItemId) AS (
 	SELECT c.Id, c.[Uid],
 	si.Price, ci.Quantity as Quantity, si.Id AS StoreItemId
@@ -120,9 +118,10 @@ WHERE s.[Uid] = @StoreUid;
 
             return user;
         }
+
         public StoreItem GetStoreItem(Guid? userUid, Guid? visitorUid, Guid storeItemUid)
         {
-            var sql = @"
+            const string sql = @"
 ;WITH UserCartModel (Id, Uid, Price, Quantity, StoreItemId) AS (
 	SELECT c.Id, c.[Uid],
 	si.Price, ci.Quantity as Quantity, si.Id AS StoreItemId

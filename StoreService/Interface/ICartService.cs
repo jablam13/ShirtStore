@@ -7,13 +7,16 @@ namespace StoreService.Interface
 {
     public interface ICartService
     {
-        Cart GetCart(Guid userUid);
-        Cart GetCart(Guid? cartUid, Guid? userUid);
-        Cart AddCart(Cart cart);
-        Cart AddCartItem(StoreItem cart);
+        Cart GetCartAll(Guid userUid, Guid visitorUid);
+        Cart GetCart(Guid userUid, Guid visitorUid);
+        List<CartItem> GetCartItems(Guid cartUid);
+        List<CartItem> GetCartItems(Guid uid, bool isVisitor);
+        Cart CreateCart(Guid userUid, Guid visitorUid);
+        CartItem AddCartItem(StoreItem cart);
         Cart EditCart(Cart cart);
-        Cart EditCartItem(Cart cart);
+        CartItem EditCartItem(Cart cart);
         bool RemoveCart(Cart cart);
-        bool RemoveCartItem(Cart cart);
+        bool RemoveCartItem(CartItem cart);
+        Cart MergeCarts(Guid userUid, Guid visitorUid);
     }
 }

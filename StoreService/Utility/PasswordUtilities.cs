@@ -5,11 +5,11 @@ using System.Text;
 
 namespace StoreService.Utility
 {
-    public class PasswordUtilities
+    public static class PasswordUtilities
     {
-        private static readonly byte SaltLength = 24;
-        private static readonly int Iterations = 60000;
-        private static readonly byte KeyLength = 24;
+        private const byte SaltLength = 24;
+        private const int Iterations = 60000;
+        private const byte KeyLength = 24;
         private static readonly RandomNumberGenerator RandomSource = RandomNumberGenerator.Create();
 
         public static string GenerateHash(string value, string salt)

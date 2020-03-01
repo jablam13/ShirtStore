@@ -36,8 +36,8 @@ namespace StoreAuthentication.Extensions
             services.AddDataProtection(options => options.ApplicationDiscriminator = appDiscriminator)
                 .SetApplicationName(appDiscriminator);
             services.AddScoped<IDataSerializer<AuthenticationTicket>, TicketSerializer>();
-            services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>(serviceProvider =>
-                new JwtTokenGenerator(tokenValidationParams.ToTokenOptions(1)));
+            services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>(_ =>
+                new JwtTokenGenerator(tokenValidationParams.ToTokenOptions(10)));
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = authenticationScheme;
@@ -63,10 +63,7 @@ namespace StoreAuthentication.Extensions
                 options.AccessDeniedPath = options.LoginPath;
                 options.ReturnUrlParameter = authUrlOptions?.ReturnUrlParameter ?? "returnUrl";
             })
-            .AddJwtBearer(o =>
-            {
-                o.TokenValidationParameters = tokenValidationParams;
-            });
+            .AddJwtBearer(o => o.TokenValidationParameters = tokenValidationParams);
 
             return services;
         }

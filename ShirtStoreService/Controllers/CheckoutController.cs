@@ -15,6 +15,7 @@ using StoreModel.Checkout;
 using StoreModel.Generic;
 using StoreModel.Store;
 using StoreService.Interface;
+using Stripe;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -39,21 +40,6 @@ namespace ShirtStoreService.Controllers
             braintreeGateway = _braintreeService;
         }
 
-        // GET: api/<controller>
-        [HttpGet("token")]
-        public IActionResult GetClientToken()
-        {
-            var token = braintreeGateway.GenerateClientToken();
-            return Ok(token);
-        }
-
-        // GET: api/<controller>
-        [HttpPost("nonce")]
-        public string GetPaymentNonce([FromBody]string token)
-        {
-            return braintreeGateway.GeneratePaymentNonce(token);
-        }
-
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpGet("user")]
         public IActionResult GetUser()
@@ -69,15 +55,23 @@ namespace ShirtStoreService.Controllers
                 LastName = lastName,
                 EmailAddress = emailAddress,
             };
-            //var user = new Users()
-            //{
-            //    Uid = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value),
-            //    FirstName = User.FindFirst("FirstName")?.Value,
-            //    LastName = User.FindFirst("LastName")?.Value,
-            //    EmailAddress = User.FindFirst(ClaimTypes.Email)?.Value,
-            //};
 
             return Ok(user);
+        }
+
+        public IActionResult TestStripe()
+        {
+            var options = new PaymentIntentCreateOptions
+            {
+                Amount = 1000,
+                Currency = "usd",
+                PaymentMethodTypes = new List<string> { "card" },
+                ReceiptEmail = "jenny.rosen@example.com",
+            };
+            var service = new PaymentIntentService();
+            service.Create(options);
+
+            return Ok();
         }
 
         // GET api/<controller>/5
@@ -143,13 +137,21 @@ namespace ShirtStoreService.Controllers
         // PUT api/<controller>/5
         [HttpPut("{id}")]
         public void Put(int id, [FromBody]string value)
+        { }
+
+        // GET: api/<controller>
+        [HttpGet("bt/token")]
+        public IActionResult GetClientToken()
         {
+            var token = braintreeGateway.GenerateClientToken();
+            return Ok(token);
         }
 
-        // DELETE api/<controller>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
+        // GET: api/<controller>
+        [HttpPost("bt/nonce")]
+        public string GetPaymentNonce([FromBody]string token)
         {
+            return braintreeGateway.GeneratePaymentNonce(token);
         }
     }
 }

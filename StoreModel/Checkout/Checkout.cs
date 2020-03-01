@@ -17,6 +17,7 @@ namespace StoreModel.Checkout
         public UserAddress BillingAddress { get; set; }
         public List<StoreItem> OrderItems { get; set; }
     }
+
     public class CheckoutTest
     {
         public string EmailAddress { get; set; }

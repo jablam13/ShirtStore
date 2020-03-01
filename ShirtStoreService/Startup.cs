@@ -16,6 +16,8 @@ using PaymentService.Braintree;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Newtonsoft.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Stripe;
+using Microsoft.Extensions.Hosting;
 
 namespace ShirtStoreService
 {
@@ -24,6 +26,7 @@ namespace ShirtStoreService
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            StripeConfiguration.ApiKey = Configuration.GetSection("StripeSettings")["SecretKey"];
         }
 
         public IConfiguration Configuration { get; }
@@ -37,7 +40,6 @@ namespace ShirtStoreService
                 appSettings.AnalyticsEnabled = Configuration.GetValue<bool>("AppSettings:AnalyticsEnabled");
                 appSettings.ConnectionString = Configuration.GetValue<string>("DataInfo:ConnectionString");
                 appSettings.SendGridSetting = Configuration.GetSection("SendGridSettings").Get<SendGridSettings>();
-                appSettings.BraintreeSettings = Configuration.GetSection("BraintreeSettings").Get<BraintreeSettings>();
             });
 
             services.AddRepositoryCollection(Configuration);
@@ -69,11 +71,13 @@ namespace ShirtStoreService
             //Use CookieAuthenticationDefaults.AuthenticationScheme for cookie generation
             //Use JwtBearerDefaults.AuthenticationScheme for passing string token and handling token passed manually from header
             //services.AddJwtAuthenticationWithProtectedCookie(validationParams, JwtBearerDefaults.AuthenticationScheme);
-            services.AddJwtAuthenticationWithProtectedCookie(validationParams, JwtBearerDefaults.AuthenticationScheme);
+            services.AddJwtAuthenticationWithProtectedCookie(validationParams, CookieAuthenticationDefaults.AuthenticationScheme);
 
-            services.AddMvc()
-                .SetCompatibilityVersion(CompatibilityVersion.Version_2_2)
-                .AddJsonOptions(options => options.SerializerSettings.ContractResolver = new DefaultContractResolver()); ;
+            services.AddControllers()
+                .AddNewtonsoftJson(options =>
+                {
+                    options.SerializerSettings.ContractResolver = new DefaultContractResolver();
+                });
 
             services.AddCors(o => o.AddPolicy("DevPolicy", builder =>
             {
@@ -84,7 +88,7 @@ namespace ShirtStoreService
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -102,7 +106,6 @@ namespace ShirtStoreService
             app.UseAuthentication();
 
             app.UseHttpsRedirection();
-            app.UseMvc();
         }
     }
 }

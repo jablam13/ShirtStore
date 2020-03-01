@@ -11,16 +11,12 @@ namespace StoreRepository
 {
     public class OrderRepository : BaseRepository, IOrderRepository
     {
-        private readonly static int siteId = 12;
-
         public OrderRepository(IOptions<AppSettings> appSettings) : base(appSettings)
-        {
-
-        }
+        { }
 
         public Order CreateOrder(Order order)
         {
-            var sql = @"
+            const string sql = @"
 DECLARE @InsertedOrder TABLE ([Id] INT);
 
 INSERT INTO Orders
@@ -40,7 +36,7 @@ SELECT TOP 1 * FROM Orders WHERE Id = (SELECT TOP 1 Id FROM @InsertedOrder);
 
         public List<OrderItem> CreateOrderItems(List<OrderItem> items)
         {
-            var sql = @"
+            const string sql = @"
 DECLARE @InsertedOrderItem TABLE ([Id] INT);
 DECLARE @StoreItemInfoId INT = (SELECT Id FROM StoreItemInfo WHERE Uid = @StoreItemInfoUid);
 
@@ -56,28 +52,29 @@ SELECT TOP 1 * FROM OrderItem WHERE Id = (SELECT TOP 1 Id FROM @InsertedOrderIte
             {
                 var itemAdded = Query<OrderItem>(sql, new
                 {
-                    OrderId = o.OrderId,
-                    StoreItemInfoUid = o.StoreItemInfoUid,
-                    Quantity = o.Quantity,
-                    Price = o.Price,
-                    Tax = o.Tax,
-                    ShippingCost = o.ShippingCost,
-                    Discount = o.Discount,
-                    Tracking = o.Tracking
+                    o.OrderId,
+                    o.StoreItemInfoUid,
+                    o.Quantity,
+                    o.Price,
+                    o.Tax,
+                    o.ShippingCost,
+                    o.Discount,
+                    o.Tracking
                 }).FirstOrDefault();
                 itemList.Add(itemAdded);
             }
 
             return itemList ?? new List<OrderItem>();
         }
+
         public void ProcessOrder(Order order)
         {
-            var sql = @"
+            const string sql = @"
 UPDATE Orders SET OrderStateId = 2, CardType = @CardType, TokenId = @TokenId, ProcessedDate = GETDATE()  WHERE Id = @OrderId;
 ";
             Execute(sql, order);
 
-            var sqlItems = @"
+            const string sqlItems = @"
 DECLARE @UserUid INT = (SELECT Uid FROM UserDetails WHERE Id = @UserId);
 DECLARE @CartId INT = (SELECT Id FROM Cart WHERE UserUid = @UserUid );
 DECLARE @StoreItemInfoId INT = (SELECT Id FROM StoreItemInfo WHERE Uid = @StoreItemInfoUid);

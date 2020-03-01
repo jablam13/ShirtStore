@@ -9,16 +9,14 @@ namespace StoreRepository
 {
     public class UsersRepository : BaseRepository, IUsersRepository
     {
-        private readonly static int siteId = 1;
+        private const int siteId = 12;
 
         public UsersRepository(IOptions<AppSettings> appSettings) : base(appSettings)
-        {
-
-        }
+        { }
 
         public Users GetUserByUid(Guid userUid)
         {
-            var sql = @"SELECT * FROM SiteUser WHERE [Uid] = @UserUid AND SiteId = @SiteId;";
+            const string sql = "SELECT * FROM SiteUser WHERE [Uid] = @UserUid AND SiteId = @SiteId;";
 
             var user = Query<Users>(sql, new { UserUid = userUid, SiteId = siteId }).FirstOrDefault();
 
@@ -26,7 +24,7 @@ namespace StoreRepository
         }
         public Users GetUserByEmail(string email)
         {
-            var sql = @"SELECT * FROM SiteUser WHERE [EmailAddress] = @EmailAddress AND SiteId = @SiteId;";
+            const string sql = "SELECT * FROM SiteUser WHERE [EmailAddress] = @EmailAddress AND SiteId = @SiteId;";
 
             var user = Query<Users>(sql, new { EmailAddress = email, SiteId = siteId }).FirstOrDefault();
 
@@ -36,7 +34,7 @@ namespace StoreRepository
         public Users Register(Users user)
         {
 
-            var sql = @"
+            const string sql = @"
 IF(NOT EXISTS( SELECT * FROM SiteUser WHERE EmailAddress = @EmailAddress AND SiteId = @SiteId))
 BEGIN
     INSERT INTO SiteUser
@@ -63,7 +61,7 @@ END
 
         public bool UsernameExists(string email)
         {
-            var sql = @"
+            const string sql = @"
 SELECT CAST(COUNT(Id) AS BIT) FROM SiteUser WHERE EmailAddress = @EmailAddress AND SiteId = @SiteId 
 ";
             return Query<bool>(sql, new { EmailAddress = email, SiteId = siteId }).FirstOrDefault();
@@ -92,7 +90,7 @@ END", new { EmailAddress = email, SiteId = siteId }).FirstOrDefault();
         public Users ValidateEmail(Guid guid)
         {
             Users user = null;
-            var sql = @"
+            const string sql = @"
 DECLARE @Email NVARCHAR(100);
 
 SET @Email = (SELECT TOP 1 EmailAddress FROM SiteUser WHERE Validator = @Validator AND SiteId = @SiteId);
@@ -110,7 +108,7 @@ END;
 
         public AuthLoginAttempt GetParticipantByUsername(string email)
         {
-            var sql = @"
+            const string sql = @"
 SELECT Id, [Uid],  [Hash], Salt, EmailAddress FROM SiteUser WHERE EmailAddress = @EmailAddress AND SiteId = @SiteId;
 ";
             var authLoginAttempt = Query<AuthLoginAttempt>(sql, new { EmailAddress = email, SiteId = siteId }).SingleOrDefault();
@@ -119,7 +117,7 @@ SELECT Id, [Uid],  [Hash], Salt, EmailAddress FROM SiteUser WHERE EmailAddress =
 
         public bool LogSuccessfulLogin(string email)
         {
-            var sql = @"
+            const string sql = @"
 DECLARE @Id INT;
 SELECT @Id = Id from SiteUser where EmailAddress = @EmailAddress AND SiteId = @SiteId;
 IF @Id IS NOT NULL
@@ -139,7 +137,7 @@ END
 
         public bool LogFailedLoginAttempt(string emailAddress)
         {
-            var sql = @"
+            const string sql = @"
 IF EXISTS(SELECT ISNULL(LoginAttempts, 0) FROM SiteUser WHERE EmailAddress = @EmailAddress AND SiteId = @SiteId)
 BEGIN
     UPDATE SiteUser SET LoginAttempts = LoginAttempts+1, LastModifiedDate = GETDATE() WHERE EmailAddress = @EmailAddress AND SiteId = @SiteId;
@@ -155,7 +153,7 @@ END
         }
         public ForgotPassword IsUsernameAvailable(Guid validator)
         {
-            var sql = @"
+            const string sql = @"
 IF(EXISTS(SELECT * FROM Registrant r JOIN UserDetails u ON r.Id = u.RegistrantId WHERE u.Validator = @Validator))
 BEGIN
     SELECT TOP 1 r.Id, r.Uid, r.EmailAddress as Email, 1 AS Status, u.Id as UserId, u.Uid as UserGuid, r.FirstName, r.LastNameFROM Registrant r 
@@ -172,7 +170,7 @@ ELSE
 
         public bool ResetPassword(string hash, string salt, string email)
         {
-            var sql = @"
+            const string sql = @"
 IF(EXISTS(SELECT * FROM SiteUser  WHERE EmailAddress = @EmailAddress AND SiteId = @SiteId))
 BEGIN
 	UPDATE SiteUser SET Salt = @Salt, [Hash] = @Hash, LastModifiedDate = GETDATE() 
@@ -189,24 +187,16 @@ ELSE
 
         public Guid GetVisitorUid()
         {
-            Guid? visitorUid = null;
-
-            var sql = @"
+            const string sql = @"
 DECLARE @InsertItems TABLE ([Uid] UNIQUEIDENTIFIER)
-	INSERT INTO VisitorCookie
+	INSERT INTO Visitor
 	OUTPUT INSERTED.VisitorUid INTO @InsertItems
 	SELECT NEWID(), NULL, GETDATE(), GETDATE(),NULL;
 	
-	SELECT TOP 1 * FROM @InsertItems
+	SELECT TOP 1 [Uid] FROM @InsertItems
 ";
 
-            var visitorGuid = Query<Guid>(sql, new
-            {
-                VisitorUid = visitorUid
-            }).FirstOrDefault();
-
-            return visitorGuid;
+            return Query<Guid>(sql).FirstOrDefault();
         }
-
     }
 }
