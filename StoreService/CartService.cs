@@ -19,30 +19,12 @@ namespace StoreService
 
         public Cart GetCartAll(Guid userUid, Guid visitorUid)
         {
-            Guid uid = visitorUid;
-            bool isVisitor = true;
-
-            if (userUid == Guid.Empty && visitorUid == Guid.Empty)
-                return new Cart();
-
-            if (userUid != Guid.Empty)
-                uid = userUid;
-
-            return cartRep.GetCartAll(uid, isVisitor);
+            return cartRep.GetCartAll(userUid, visitorUid);
         }
 
         public Cart GetCart(Guid userUid, Guid visitorUid)
         {
-            Guid uid = visitorUid;
-            bool isVisitor = true;
-
-            if (userUid == Guid.Empty && visitorUid == Guid.Empty)
-                return new Cart();
-
-            if (userUid != Guid.Empty)
-                uid = userUid;
-
-            return cartRep.GetCartAll(uid, isVisitor);
+            return cartRep.GetCartAll(userUid, visitorUid);
         }
 
         public List<CartItem> GetCartItems(Guid cartUid)
@@ -50,47 +32,69 @@ namespace StoreService
             return cartRep.GetCartItems(cartUid);
         }
 
-        public List<CartItem> GetCartItems(Guid uid, bool isVisitor)
+        public List<CartItem> GetCartItems(Guid userUid, Guid visitorUid)
         {
-            return cartRep.GetCartItems(uid, isVisitor);
+            var cart = cartRep.GetCart(userUid, visitorUid);
+
+            if (cart == null)
+            {
+                return null;
+            }
+
+            return cartRep.GetCartItems(cart.Id);
         }
 
-        public Cart CreateCart(Guid userUid, Guid visitorUid)
+        public CartItem AddCartItem(StoreItem item, Guid userUid, Guid visitorUid)
         {
-            return cartRep.CreateCart(userUid, visitorUid);
+            var cart = cartRep.GetCart(userUid, visitorUid);
+
+            if (cart == null) {
+                return null;
+            }
+
+            return cartRep.AddCartItem(item, cart.Id);
         }
 
-        public CartItem AddCartItem(StoreItem cart)
+        public CartItem EditCartItem(StoreItem item, Guid userUid, Guid visitorUid)
         {
-            return new CartItem();
+            var cart = cartRep.GetCart(userUid, visitorUid);
+
+            if (cart == null)
+            {
+                return null;
+            }
+
+            return cartRep.AddCartItem(item, cart.Id);
         }
 
-        public Cart EditCart(Cart cart)
+        public bool RemoveCartItem(CartItem item)
         {
-            return new Cart();
-        }
-        public CartItem EditCartItem(Cart cart)
-        {
-            return new CartItem();
-        }
-        public bool RemoveCart(Cart cart)
-        {
-            bool success = false;
-
-            return success;
-        }
-        public bool RemoveCartItem(CartItem cart)
-        {
-            bool success = false;
-
-            return success;
+            return cartRep.RemoveCartItem(item);
         }
 
         public Cart MergeCarts(Guid userUid, Guid visitorUid)
         {
+            if (userUid == null && visitorUid == null)
+                return null;
 
+            var visitorCart = cartRep.GetVisitorCart(visitorUid);
+            var userCart = cartRep.GetUserCart(userUid);
 
-            return new Cart();
+            if (visitorCart == null && userCart == null)
+                userCart = cartRep.GetCartAll(userUid, visitorUid);
+
+            if (visitorCart.Id == userCart.Id)
+                return userCart;
+
+            if (visitorCart != null && userCart == null)
+            {
+                //update cart with userUid, userId
+                visitorCart.UserUid = userUid;
+                userCart = cartRep.UpdateCart(visitorCart);
+                //update 
+            } 
+
+            return userCart;
         }
     }
 }

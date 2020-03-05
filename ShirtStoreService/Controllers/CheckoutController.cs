@@ -40,7 +40,6 @@ namespace ShirtStoreService.Controllers
             braintreeGateway = _braintreeService;
         }
 
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpGet("user")]
         public IActionResult GetUser()
         {
@@ -59,6 +58,7 @@ namespace ShirtStoreService.Controllers
             return Ok(user);
         }
 
+        [HttpGet("teststripe")]
         public IActionResult TestStripe()
         {
             var options = new PaymentIntentCreateOptions
@@ -69,9 +69,9 @@ namespace ShirtStoreService.Controllers
                 ReceiptEmail = "jenny.rosen@example.com",
             };
             var service = new PaymentIntentService();
-            service.Create(options);
+            var response = service.Create(options);
 
-            return Ok();
+            return Ok(response);
         }
 
         // GET api/<controller>/5

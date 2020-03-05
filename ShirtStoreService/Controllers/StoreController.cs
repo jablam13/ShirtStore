@@ -33,8 +33,9 @@ namespace ShirtStoreService.Controllers
         [HttpGet("/{suid}")]
         public IActionResult GetStore(Guid? _storeUid)
         {
-            var storeUid = _storeUid.HasValue ? _storeUid.Value : Guid.Empty;
+            var storeUid = _storeUid.HasValue ? _storeUid.Value : defaultStoreUid;
             userUid = GetUserUid();
+            visitorUid = GetVisitorUid();
 
             // return storeUid != Guid.Empty ? storeService.GetStore(storeUid, userUid, visitorUid) : new Store();
             return Ok(storeService.GetStore(storeUid, userUid, visitorUid));
@@ -46,7 +47,7 @@ namespace ShirtStoreService.Controllers
         {
             Guid itemUid = itemuid.HasValue ? itemuid.Value : Guid.Empty;
 
-            return Ok(storeService.GetStoreItem(itemUid, GetUserUid(), visitorUid));
+            return Ok(storeService.GetStoreItem(itemUid, GetUserUid(), GetVisitorUid()));
 
         }
     }

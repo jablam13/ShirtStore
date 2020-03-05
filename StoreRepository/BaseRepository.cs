@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using StoreModel.Generic;
 using StoreRepository.Interface;
 using System.Data.SqlClient;
+using System.Threading.Tasks;
 
 namespace StoreRepository
 {
@@ -15,11 +16,13 @@ namespace StoreRepository
     {
         private readonly AppSettings _appSettings;
         private readonly string connectionString;
+        protected readonly int siteId;
 
         public BaseRepository(IOptions<AppSettings> appSettings)
         {
             _appSettings = appSettings.Value;
             connectionString = _appSettings.ConnectionString.ToString();
+            siteId = _appSettings.SiteId;
         }
 
         internal IDbConnection SqlConnection => new SqlConnection(connectionString);
@@ -33,6 +36,25 @@ namespace StoreRepository
             try
             {
                 results = SqlMapper.Query<T>(connection, sql, param, transaction, buffered, commandTimeout, commandType);
+            }
+            catch (Exception e)
+            {
+                var exception = new Exception("Sql Query Error", e);
+                exception.Data["Parameters"] = param != null ? ToPropertiesString(param) : "None";
+                throw exception;
+            }
+            return results;
+        }
+
+        public async Task<IEnumerable<T>> QueryAsync<T>(string sql, dynamic param = null, IDbTransaction transaction = null, int? commandTimeout = null, CommandType? commandType = null, [CallerFilePath] string fromFile = null, [CallerLineNumber] int fromLine = 0)
+        {
+            dynamic results;
+            var connection = new SqlConnection(connectionString);
+            sql = MarkSqlString(sql, fromFile, fromLine);
+
+            try
+            {
+                results = await SqlMapper.QueryAsync<T>(connection, sql, param, transaction, commandTimeout, commandType).ConfigureAwait(false);
             }
             catch (Exception e)
             {

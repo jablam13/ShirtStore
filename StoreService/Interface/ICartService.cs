@@ -10,12 +10,9 @@ namespace StoreService.Interface
         Cart GetCartAll(Guid userUid, Guid visitorUid);
         Cart GetCart(Guid userUid, Guid visitorUid);
         List<CartItem> GetCartItems(Guid cartUid);
-        List<CartItem> GetCartItems(Guid uid, bool isVisitor);
-        Cart CreateCart(Guid userUid, Guid visitorUid);
-        CartItem AddCartItem(StoreItem cart);
-        Cart EditCart(Cart cart);
-        CartItem EditCartItem(Cart cart);
-        bool RemoveCart(Cart cart);
+        List<CartItem> GetCartItems(Guid userUid, Guid visitorUid);
+        CartItem AddCartItem(StoreItem item, Guid userUid, Guid visitorUid);
+        CartItem EditCartItem(StoreItem item, Guid userUid, Guid visitorUid);
         bool RemoveCartItem(CartItem cart);
         Cart MergeCarts(Guid userUid, Guid visitorUid);
     }

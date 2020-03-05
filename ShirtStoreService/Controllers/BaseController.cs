@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using StoreModel.Generic;
 using StoreService.Interface;
+using System.Threading.Tasks;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -32,22 +33,42 @@ namespace ShirtStoreService.Controllers
 
         public override void OnActionExecuting(ActionExecutingContext context)
         {
-            if (visitorUid == Guid.Empty)
+            string uid = context.HttpContext.Response.Headers["X-Custom"].ToString();
+
+            if (string.IsNullOrEmpty(uid))
             {
-                visitorUid = GetCookie();
+                uid = accountService.GetVisitorUid().Result.ToString();
+                context.HttpContext.Response.Headers.Add("X-Custom", uid);
+                context.HttpContext.Response.Headers.Add("visitor", uid);
+                context.HttpContext.Response.Headers.Add("Access-Control-Expose-Headers", "X-Custom, visitor");
             }
         }
 
-        public Guid GetVisitorUid()
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
-            if (visitorUid == Guid.Empty)
-            {
-                visitorUid = GetCookie();
-            }
-            return visitorUid;
+            await ConfigureVisitorUid(context);
+
+            await next().ConfigureAwait(false);
         }
 
-        public Guid GetUserUid()
+        private async Task<string> ConfigureVisitorUid(ActionExecutingContext context)
+        {
+            string uid = context.HttpContext.Request.Headers["X-Custom"].ToString();
+
+            if (string.IsNullOrEmpty(uid))
+            {
+                var visitorUid = await accountService.GetVisitorUid().ConfigureAwait(false);
+                uid = visitorUid.ToString();
+            }
+
+            context.HttpContext.Response.Headers.Add("X-Custom", uid);
+            context.HttpContext.Response.Headers.Add("visitor", uid);
+            context.HttpContext.Response.Headers.Add("Access-Control-Expose-Headers", "X-Custom, visitor");
+
+            return uid;
+        }
+
+        protected Guid GetUserUid()
         {
             if (User != null && (User?.Claims?.Count() ?? 0) > 0)
             {
@@ -56,44 +77,16 @@ namespace ShirtStoreService.Controllers
             return userUid;
         }
 
-        private Guid GetCookie()
+        protected Guid GetVisitorUid()
         {
-            //Get cookies from browser
-            var cookies = httpContextAccessor.HttpContext.Request.Cookies;
-            var _visitorCookie = cookies["VisitorUid"]?.ToString();
+            string uid = httpContextAccessor.HttpContext.Request.Headers["visitor"].ToString();
 
-            //parse cookie to Guid from string 
-            Guid.TryParse(_visitorCookie, out visitorUid);
-
-            //if(cookie doesnt exist, get new VisitorUid from database and add a new cookie for VisitorUid
-            if (visitorUid == null || Guid.Empty == visitorUid)
+            if (string.IsNullOrEmpty(uid))
             {
-                var cookieOptions = new CookieOptions
-                {
-                    Expires = DateTime.Now.AddYears(1)
-                };
-
-                visitorUid = accountService.GetVisitorUid();
-                httpContextAccessor.HttpContext.Response.Cookies.Append("VisitorUid", visitorUid.ToString(), cookieOptions);
+                uid = accountService.GetVisitorUid().Result.ToString();
             }
 
-            return visitorUid;
+            return Guid.Parse(uid);
         }
-
-        private void UpdateCookie(Guid _visitorUid)
-        {
-            visitorUid = _visitorUid;
-
-            //Get cookies from browser
-            var cookies = httpContextAccessor.HttpContext.Request.Cookies;
-            var cookieOptions = new CookieOptions
-            {
-                Expires = DateTime.Now.AddYears(1)
-            };
-            httpContextAccessor.HttpContext.Response.Cookies.Append("VisitorUid", visitorUid.ToString(), cookieOptions);
-        }
-
-
-
     }
 }

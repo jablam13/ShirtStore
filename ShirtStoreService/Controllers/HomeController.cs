@@ -12,7 +12,6 @@ namespace ShirtStoreService.Controllers
     [ApiController]
     public class HomeController : ControllerBase
     {
-
         private readonly ILogger<HomeController> _logger;
 
         public HomeController(ILogger<HomeController> logger)

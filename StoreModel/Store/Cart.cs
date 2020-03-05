@@ -9,6 +9,10 @@ namespace StoreModel.Store
     {
         public int Id { get; set; }
         public Guid Uid { get; set; }
+        public Guid VisitorUid { get; set; }
+        public Guid UserUid { get; set; }
+        public Guid CartUid { get; set; }
+        public int UserId { get; set; }
         public decimal TotalPrice { get; set; }
         public int Quantity { get; set; }
         public List<CartItem> CartItems { get; set; } = new List<CartItem>();

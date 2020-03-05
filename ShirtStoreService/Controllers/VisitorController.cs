@@ -4,9 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StoreModel.Generic;
-using StoreModel.Store;
 using StoreService.Interface;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -14,41 +14,39 @@ using StoreService.Interface;
 namespace ShirtStoreService.Controllers
 {
     [Route("api/[controller]")]
-    public class CartController : BaseController
+    public class VisitorController : BaseController
     {
-        private readonly ICartService cartService;
+        private readonly IAccountService userService;
+        private readonly ILogger<AccountController> logger;
 
-        public CartController(
+        public VisitorController(
             IOptions<AppSettings> _appSettings,
             IHttpContextAccessor _httpContextAccessor,
             IAccountService _userService,
-            ICartService _cartService) : base(_appSettings, _httpContextAccessor, _userService)
+            ILogger<AccountController> _logger) : base(_appSettings, _httpContextAccessor, _userService)
         {
-            cartService = _cartService;
+            logger = _logger;
+            userService = _userService;
+        }
+
+        // GET: api/<controller>
+        [HttpGet]
+        public async Task<Guid> Get()
+        {
+            return await userService.GetVisitorUid();
         }
 
         // GET api/<controller>/5
-        [HttpGet("")]
-        public Cart Get()
+        [HttpGet("{id}")]
+        public string Get(int id)
         {
-            //getuser id
-            var userUid = GetUserUid();
-
-            //get visitor id
-
-            //return cartService.GetCart(userUid, visitorUid);
-            return new Cart();
+            return "value";
         }
 
         // POST api/<controller>
-        [HttpPost("addtocart")]
-        public CartItem AddCartItem([FromBody]StoreItem item)
+        [HttpPost]
+        public void Post([FromBody]string value)
         {
-            var userUid = GetUserUid();
-            var visitorUid = Guid.NewGuid();
-            var addedCartItem = cartService.AddCartItem(item, userUid, visitorUid);
-
-            return addedCartItem;
         }
 
         // PUT api/<controller>/5

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace StoreRepository.Interface
 {
@@ -18,6 +19,6 @@ namespace StoreRepository.Interface
         bool LogFailedLoginAttempt(string emailAddress);
         ForgotPassword IsUsernameAvailable(Guid validator);
         bool ResetPassword(string hash, string salt, string email);
-        Guid GetVisitorUid();
+        Task<Guid> GetVisitorUid();
     }
 }

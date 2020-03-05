@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StoreModel.Account;
 using StoreModel.Generic;
@@ -23,12 +24,15 @@ namespace ShirtStoreService.Controllers
     public class AccountController : BaseController
     {
         private readonly IAccountService userService;
+        private readonly ILogger<AccountController> logger;
 
         public AccountController(
             IOptions<AppSettings> _appSettings,
             IHttpContextAccessor _httpContextAccessor,
-            IAccountService _userService) : base(_appSettings, _httpContextAccessor, _userService)
+            IAccountService _userService,
+            ILogger<AccountController> _logger) : base(_appSettings, _httpContextAccessor, _userService)
         {
+            logger = _logger;
             userService = _userService;
         }
 
@@ -59,8 +63,7 @@ namespace ShirtStoreService.Controllers
             return Ok(check);
         }
 
-        //[AllowAnonymous]
-        //[ValidateAntiForgeryToken]
+        [AllowAnonymous]
         [HttpGet("isauthenticated")]
         public IActionResult IsAuthenticated()
         {

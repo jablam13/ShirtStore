@@ -3,7 +3,6 @@ using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -16,8 +15,8 @@ using PaymentService.Braintree;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Newtonsoft.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Stripe;
 using Microsoft.Extensions.Hosting;
+using Stripe;
 
 namespace ShirtStoreService
 {
@@ -26,7 +25,7 @@ namespace ShirtStoreService
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-            StripeConfiguration.ApiKey = Configuration.GetSection("StripeSettings")["SecretKey"];
+            StripeConfiguration.ApiKey = configuration["StripeSettings:SecretKey"];
         }
 
         public IConfiguration Configuration { get; }
@@ -40,6 +39,7 @@ namespace ShirtStoreService
                 appSettings.AnalyticsEnabled = Configuration.GetValue<bool>("AppSettings:AnalyticsEnabled");
                 appSettings.ConnectionString = Configuration.GetValue<string>("DataInfo:ConnectionString");
                 appSettings.SendGridSetting = Configuration.GetSection("SendGridSettings").Get<SendGridSettings>();
+                appSettings.BraintreeSettings = Configuration.GetSection("BraintreeSettings").Get<BraintreeSettings>();
             });
 
             services.AddRepositoryCollection(Configuration);
@@ -71,7 +71,7 @@ namespace ShirtStoreService
             //Use CookieAuthenticationDefaults.AuthenticationScheme for cookie generation
             //Use JwtBearerDefaults.AuthenticationScheme for passing string token and handling token passed manually from header
             //services.AddJwtAuthenticationWithProtectedCookie(validationParams, JwtBearerDefaults.AuthenticationScheme);
-            services.AddJwtAuthenticationWithProtectedCookie(validationParams, CookieAuthenticationDefaults.AuthenticationScheme);
+            services.AddJwtAuthenticationWithDataProtection(validationParams, JwtBearerDefaults.AuthenticationScheme);
 
             services.AddControllers()
                 .AddNewtonsoftJson(options =>
@@ -79,11 +79,13 @@ namespace ShirtStoreService
                     options.SerializerSettings.ContractResolver = new DefaultContractResolver();
                 });
 
+            var exposedHeaders = new string[] { "test", "visitor" };
             services.AddCors(o => o.AddPolicy("DevPolicy", builder =>
             {
                 builder.WithOrigins("http://localhost:4200")
                        .AllowAnyMethod()
                        .AllowAnyHeader();
+                       //.WithExposedHeaders(exposedHeaders);
             }));
         }
 
@@ -101,11 +103,26 @@ namespace ShirtStoreService
             }
 
             app.UseCors("DevPolicy");
-
             app.UseStaticFiles();
             app.UseAuthentication();
 
             app.UseHttpsRedirection();
+
+            app.UseRouting();
+
+            app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
+
+            /// Add header:
+            app.Use((context, next) =>
+            {
+                context.Response.Headers.Add("test","test-header");
+                return next.Invoke();
+            });
         }
     }
 }

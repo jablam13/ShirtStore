@@ -4,15 +4,16 @@ using StoreModel.Generic;
 using StoreRepository.Interface;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace StoreRepository
 {
     public class UsersRepository : BaseRepository, IUsersRepository
     {
-        private const int siteId = 12;
 
         public UsersRepository(IOptions<AppSettings> appSettings) : base(appSettings)
-        { }
+        {
+        }
 
         public Users GetUserByUid(Guid userUid)
         {
@@ -185,7 +186,7 @@ ELSE
             return Query<bool>(sql, new { Hash = hash, Salt = salt, SiteId = siteId, EmailAddress = email }).FirstOrDefault();
         }
 
-        public Guid GetVisitorUid()
+        public async Task<Guid> GetVisitorUid()
         {
             const string sql = @"
 DECLARE @InsertItems TABLE ([Uid] UNIQUEIDENTIFIER)
@@ -195,8 +196,8 @@ DECLARE @InsertItems TABLE ([Uid] UNIQUEIDENTIFIER)
 	
 	SELECT TOP 1 [Uid] FROM @InsertItems
 ";
-
-            return Query<Guid>(sql).FirstOrDefault();
+            var guid = await QueryAsync<Guid>(sql).ConfigureAwait(false);
+            return guid.FirstOrDefault();
         }
     }
 }

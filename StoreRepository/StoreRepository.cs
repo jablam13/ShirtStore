@@ -61,8 +61,8 @@ s.Name, s.[Description], s.LargeImg, s.SmallImg, s.Active, s.CreatedDate, s.Last
 FROM Store s 
 JOIN StoreCollection sc ON sc.StoreId = s.Id 
 LEFT JOIN SiteUser u on u.Id = s.CreatorId 
-WHERE s.[Uid] = @StoreGuid;
 WHERE 1=1
+AND s.[Uid] = @StoreGuid
 AND sc.SiteCollectionId = @SiteId
 AND s.Active = 1;
 ";

@@ -7,12 +7,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace StoreAuthentication.Extensions
 {
     public static class AuthenticationCollectionExtension
     {
-        public static IServiceCollection AddJwtAuthenticationWithProtectedCookie(this IServiceCollection services,
+        public static IServiceCollection AddJwtAuthenticationWithDataProtection(this IServiceCollection services,
             TokenValidationParameters tokenValidationParams,
             string authenticationScheme,
             string applicationDiscriminator = null,
@@ -27,7 +28,7 @@ namespace StoreAuthentication.Extensions
 
             if (string.IsNullOrEmpty(authenticationScheme) || string.IsNullOrWhiteSpace(authenticationScheme))
             {
-                authenticationScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                authenticationScheme = JwtBearerDefaults.AuthenticationScheme;
             }
 
             var hostingEnvironment = services.BuildServiceProvider().GetService<IHostingEnvironment>();
@@ -44,25 +45,25 @@ namespace StoreAuthentication.Extensions
                 options.DefaultSignInScheme = authenticationScheme;
                 options.DefaultChallengeScheme = authenticationScheme;
             })
-            .AddCookie(options =>
-            {
-                options.Cookie.Expiration = TimeSpan.FromMinutes(1);
-                options.TicketDataFormat = new JwtAuthTicketFormat(tokenValidationParams,
-                    services.BuildServiceProvider().GetService<IDataSerializer<AuthenticationTicket>>(),
-                    services.BuildServiceProvider().GetDataProtector(new[]
-                    {
-                        $"{applicationDiscriminator ?? hostingEnvironment.ApplicationName}-Auth1"
-                    }));
+            //.AddCookie(options =>
+            //{
+            //    options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+            //    options.TicketDataFormat = new JwtAuthTicketFormat(tokenValidationParams,
+            //        services.BuildServiceProvider().GetService<IDataSerializer<AuthenticationTicket>>(),
+            //        services.BuildServiceProvider().GetDataProtector(new[]
+            //        {
+            //            $"{applicationDiscriminator ?? hostingEnvironment.ApplicationName}-Auth1"
+            //        }));
 
-                options.LoginPath = authUrlOptions != null ?
-                    new PathString(authUrlOptions.LoginPath)
-                    : new PathString("/Account/Login");
-                options.LogoutPath = authUrlOptions != null ?
-                    new PathString(authUrlOptions.LogoutPath)
-                    : new PathString("/Account/Logout");
-                options.AccessDeniedPath = options.LoginPath;
-                options.ReturnUrlParameter = authUrlOptions?.ReturnUrlParameter ?? "returnUrl";
-            })
+            //    options.LoginPath = authUrlOptions != null ?
+            //        new PathString(authUrlOptions.LoginPath)
+            //        : new PathString("/Account/Login");
+            //    options.LogoutPath = authUrlOptions != null ?
+            //        new PathString(authUrlOptions.LogoutPath)
+            //        : new PathString("/Account/Logout");
+            //    options.AccessDeniedPath = options.LoginPath;
+            //    options.ReturnUrlParameter = authUrlOptions?.ReturnUrlParameter ?? "returnUrl";
+            //})
             .AddJwtBearer(o => o.TokenValidationParameters = tokenValidationParams);
 
             return services;

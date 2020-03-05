@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace StoreService
 {
@@ -185,12 +186,12 @@ namespace StoreService
             return success;
         }
 
-        public Guid GetVisitorUid()
+        public async Task<Guid> GetVisitorUid()
         {
             Guid visitorUid = Guid.Empty;
             try
             {
-                visitorUid = userRep.GetVisitorUid();
+                visitorUid = await userRep.GetVisitorUid();
             }
             catch (Exception ex)
             {
@@ -226,10 +227,13 @@ namespace StoreService
 
             return myClaims;
         }
+
         private static bool CheckAuthentication(AuthLoginAttempt authLoginAttempt, UserCredentials userCredentials)
         {
-            bool isNotNull = (authLoginAttempt != null && !string.IsNullOrWhiteSpace(userCredentials.Password));
-            bool validHash = authLoginAttempt.Hash == PasswordUtilities.GenerateHash(userCredentials.Password, authLoginAttempt.Salt);
+            bool validHash = false;
+            bool isNotNull = authLoginAttempt != null && !string.IsNullOrWhiteSpace(userCredentials.Password);
+            if (isNotNull && authLoginAttempt.Salt != null)
+                validHash = authLoginAttempt.Hash == PasswordUtilities.GenerateHash(userCredentials.Password, authLoginAttempt.Salt);
             return isNotNull && validHash;
         }
 
