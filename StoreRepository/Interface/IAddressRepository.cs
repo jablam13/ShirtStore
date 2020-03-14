@@ -1,15 +1,16 @@
 ﻿using StoreModel.Account;
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace StoreRepository.Interface
 {
     public interface IAddressRepository
     {
-        UserAddress CreateAddress(UserAddress address);
-        UserAddress EditAddress(UserAddress address);
-        void RemoveAddress(UserAddress address);
-        UserAddress GetAddress(UserAddress address);
-        UserAddress GetAddress(int addressId);
-        UserAddress GetAddress(Guid addressUid);
+        Task<UserAddress> CreateAddress(UserAddress address);
+        Task<UserAddress> EditAddress(UserAddress address);
+        Task<Guid?> RemoveAddress(Guid addressUid, Guid userUid);
+        Task<List<UserAddress>> GetUserAddresses(UserAddress address);
+        Task<UserAddress> GetAddressById(int addressId);
     }
 }

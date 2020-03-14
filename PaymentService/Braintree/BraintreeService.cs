@@ -159,7 +159,7 @@ namespace PaymentService.Braintree
                 PostalCode = checkout.ShippingAddress?.ZipCode,
                 Region = checkout.ShippingAddress?.StateCode,
                 Locality = checkout.ShippingAddress?.City,
-                ExtendedAddress = checkout.ShippingAddress?.Street1,
+                ExtendedAddress = checkout.ShippingAddress?.Street2,
                 StreetAddress = checkout.ShippingAddress?.Street,
                 LastName = checkout.ShippingAddress?.LastName,
                 FirstName = checkout.ShippingAddress?.FirstName,

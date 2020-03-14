@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
@@ -24,31 +25,55 @@ namespace ShirtStoreService.Controllers
     public class AccountController : BaseController
     {
         private readonly IAccountService userService;
+        private readonly ICartService cartService;
         private readonly ILogger<AccountController> logger;
 
         public AccountController(
             IOptions<AppSettings> _appSettings,
             IHttpContextAccessor _httpContextAccessor,
             IAccountService _userService,
+            ICartService _cartService,
             ILogger<AccountController> _logger) : base(_appSettings, _httpContextAccessor, _userService)
         {
             logger = _logger;
             userService = _userService;
+            cartService = _cartService;
         }
 
         [AllowAnonymous]
         //[ValidateAntiForgeryToken]
         [HttpPost("login")]
-        public IActionResult Login([FromBody] UserCredentials userCredentials)
+        public async Task<IActionResult> Login([FromBody] UserCredentials userCredentials)
         {
-            string result = userService.LoginUser(userCredentials, User.Identity.IsAuthenticated);
+            string token;
+            try
+            {
+                var authAttempt = userService.AttemptLoginUser(userCredentials);
 
-            if (!result.Any())
+                var user = userService.GetLoginUser(userCredentials, authAttempt);
+
+                token = userService.AuthorizeUserJwt(user);
+            }
+            catch(Exception ex)
+            {
+                logger.LogError(ex.Message);
+                return BadRequest();
+            }
+
+            if (string.IsNullOrEmpty(token))
             {
                 return NotFound(userCredentials);
             }
 
-            return Ok(result);
+            //// update user visitor relation
+            //var updateUserVisitor = await userService.UpdateUserVisitor(visitorUid, userUid).ConfigureAwait(false);
+
+            //// merge cart
+            //if (updateUserVisitor)
+            //{
+            //    await cartService.MergeCarts(visitorUid, userUid).ConfigureAwait(false);
+            //}
+            return Ok(token);
         }
 
         //[AllowAnonymous]
@@ -58,7 +83,6 @@ namespace ShirtStoreService.Controllers
         [Authorize(AuthenticationSchemes = "Bearer")]
         public IActionResult CheckAuthenticated()
         {
-            var principal = User as ClaimsPrincipal;
             var check = User.Identity.IsAuthenticated;
             return Ok(check);
         }
@@ -67,7 +91,7 @@ namespace ShirtStoreService.Controllers
         [HttpGet("isauthenticated")]
         public IActionResult IsAuthenticated()
         {
-            var principal = User as ClaimsPrincipal;
+            //var principal = User as ClaimsPrincipal;
             var check = User.Identity.IsAuthenticated;
             return Ok(check);
         }
@@ -80,6 +104,11 @@ namespace ShirtStoreService.Controllers
         {
             var result = userService.RegisterUser(user);
 
+            if(result.Length == 0)
+            {
+                return BadRequest();
+            }
+
             return Ok(result);
         }
 
@@ -88,9 +117,9 @@ namespace ShirtStoreService.Controllers
         //[ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await HttpContext.SignOutAsync(JwtBearerDefaults.AuthenticationScheme);
 
-            return Ok(CookieAuthenticationDefaults.AuthenticationScheme.ToString());
+            return Ok(CookieAuthenticationDefaults.AuthenticationScheme);
         }
     }
 }

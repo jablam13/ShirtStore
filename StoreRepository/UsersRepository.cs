@@ -199,5 +199,37 @@ DECLARE @InsertItems TABLE ([Uid] UNIQUEIDENTIFIER)
             var guid = await QueryAsync<Guid>(sql).ConfigureAwait(false);
             return guid.FirstOrDefault();
         }
+
+        public async Task<bool> UpdateUserVisitor(Guid visitorUid, Guid userUid)
+        {
+            const string sql = @"
+IF EXISTS(SELECT * FROM Visitor WHERE UserUid != @UserUid AND VisitorUid != @VisitorUid)
+BEGIN 
+    INSERT INTO Visitor
+    SELECT @VisitorUid, @UserUid, GETDATE(), GETDATE(), GETDATE();
+END;
+
+IF EXISTS(SELECT * FROM Visitor WHERE UserUid = @UserUid AND VisitorUid != @VisitorUid)
+BEGIN 
+    UPDATE Visitor SET VisitorUid = @VisitorUid, LastMergeDate = GETDATE() WHERE UserUid = @UserUid;
+    SELECT 1;
+END;
+
+IF EXISTS(SELECT * FROM Visitor WHERE VisitorUid = @VisitorUid AND UserUid != @UserUid)
+BEGIN
+    UPDATE Visitor SET UserUid = @UserUid, LastMergeDate = GETDATE() WHERE VisitorUid = @VisitorUid;
+    SELECT 1;
+END;
+
+IF EXISTS(SELECT * FROM Visitor WHERE UserUid = @UserUid AND VisitorUid = @VisitorUid)
+BEGIN
+    SELECT 1;
+END;
+
+SELECT 0;
+";
+            var guid = await QueryAsync<bool>(sql, new { UserUid = userUid, VisitorUid = visitorUid }).ConfigureAwait(false);
+            return guid.FirstOrDefault();
+        }
     }
 }

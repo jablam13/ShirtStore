@@ -7,6 +7,7 @@ using StoreService.Interface;
 using StoreService.Utility;
 using System;
 using System.Collections.Generic;
+using System.Security.Authentication;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
@@ -92,6 +93,61 @@ namespace StoreService
             return accessToken;
         }
 
+        public AuthLoginAttempt AttemptLoginUser(UserCredentials userCredentials)
+        {
+            var paramsAreNull = string.IsNullOrWhiteSpace(userCredentials.EmailAddress) || string.IsNullOrWhiteSpace(userCredentials.Password);
+
+            if (paramsAreNull)
+            {
+                throw new ArgumentNullException();
+            }
+
+            try
+            {
+                return userRep.GetParticipantByUsername(userCredentials.EmailAddress);
+            }
+            catch(Exception)
+            {
+                throw;
+            }
+        }
+
+        public Users GetLoginUser(UserCredentials userCredentials, AuthLoginAttempt attempt)
+        {
+            //validate user
+            bool validAuthentication = CheckAuthentication(attempt, userCredentials);
+
+            if (!validAuthentication)
+            {
+                throw new AuthenticationException();
+            }
+
+            try
+            {
+                return userRep.GetUserByEmail(userCredentials.EmailAddress);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public string AuthorizeUserJwt(Users user)
+        {
+            try
+            {
+                var userClaims = AddMyClaims(user);
+                var accessTokenResult = tokenGenerator
+                    .GenerateAccessTokenWithClaimsPrincipal(user.EmailAddress, userClaims);
+
+                return accessTokenResult?.AccessToken?.ToString() ?? "";
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
         public string RegisterUser(UserCredentials userCredentials)
         {
             var accessToken = "";
@@ -131,71 +187,30 @@ namespace StoreService
             return accessToken;
         }
 
-        public string RegisterUser(Users user, string password)
+        public async Task<bool> UpdateUserVisitor(Guid visitorUid, Guid userUid)
         {
-            var accessToken = "";
-
+            bool success;
             try
             {
-                //check if userCredentials arent null 
-                if (user != null && !CheckUserCredentials(user?.Username ?? user?.EmailAddress, password))
-                {
-                    return accessToken;
-                }
-
-                //check if username exists
-                if (userRep.UsernameExists(user?.Username ?? user?.EmailAddress))
-                {
-                    return accessToken;
-                }
-
-                //convert UserCredentials to Users object 
-                user = RegistrantPasswordSetup(user, password);
-
-                //insert user into database, update user with id, uid, etc..
-                user = userRep.Register(user);
-
-                if (user != null)
-                {
-                    //generate token for user
-                    var accessTokenResult = tokenGenerator.GenerateAccessTokenWithClaimsPrincipal(
-                                user.EmailAddress,
-                                AddMyClaims(user));
-
-                    //sign user in
-                    context.HttpContext.SignInAsync(accessTokenResult.ClaimsPrincipal,
-                        accessTokenResult.AuthProperties);
-
-                    accessToken = accessTokenResult?.AccessToken?.ToString() ?? "";
-                }
-
+                success = await userRep.UpdateUserVisitor(userUid, visitorUid).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //log exception
+                throw;
             }
-            return accessToken;
-
-        }
-
-        public bool LogUserOut()
-        {
-            bool success = false;
-
 
             return success;
         }
-
         public async Task<Guid> GetVisitorUid()
         {
-            Guid visitorUid = Guid.Empty;
+            Guid visitorUid;
             try
             {
                 visitorUid = await userRep.GetVisitorUid();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //log exception
+                throw;
             }
 
             return visitorUid;
@@ -220,7 +235,7 @@ namespace StoreService
                 new Claim(ClaimTypes.GivenName, user.FirstName),
                 new Claim(ClaimTypes.Surname, user.LastName),
                 new Claim(ClaimTypes.NameIdentifier, user.Uid.ToString()),
-                new Claim(ClaimTypes.Email, user.EmailAddress ?? user.EmailAddress),
+                new Claim(ClaimTypes.Email, user.EmailAddress),
                 new Claim("FirstName", user.FirstName ?? ""),
                 new Claim("LastName", user.LastName ?? ""),
         };
@@ -242,20 +257,6 @@ namespace StoreService
             return user != null
                 && !string.IsNullOrWhiteSpace(user?.EmailAddress)
                 && !string.IsNullOrWhiteSpace(user?.Password);
-        }
-
-        private static bool CheckUserCredentials(string emailAddress, string password)
-        {
-            return !string.IsNullOrWhiteSpace(emailAddress)
-                && !string.IsNullOrWhiteSpace(password);
-        }
-
-        private Users RegistrantPasswordSetup(Users user, string password)
-        {
-            user.Salt = PasswordUtilities.GenerateSalt();
-            user.Hash = PasswordUtilities.GenerateHash(password, user.Salt);
-
-            return user;
         }
 
         private static Users ConvertToUser(UserCredentials userCredentials)

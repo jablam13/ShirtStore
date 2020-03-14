@@ -3,7 +3,9 @@ using StoreModel.Account;
 using StoreModel.Generic;
 using StoreRepository.Interface;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace StoreRepository
 {
@@ -12,122 +14,160 @@ namespace StoreRepository
         public AddressRepository(IOptions<AppSettings> appSettings) : base(appSettings)
         { }
 
-        public UserAddress CreateAddress(UserAddress address)
+        public async Task<UserAddress> CreateAddress(UserAddress address)
         {
             const string sql = @"
 DECLARE @InsertedAddress TABLE ([Id] INT);
+SELECT @UserId = Id FROM SiteUser WHERE Uid = @UserUid;
+
+IF(@UserId IS NULL)
+BEGIN 
+    SELECT NULL;
+END;
+
 
 --Insert new address
-IF EXISTS(SELECT * FROM [Address] WHERE 1=1 AND
-	FirstName = @FirstName AND
-	LastName = @LastName AND 
-	Street = @Street AND 
-	Street1 = @Street1 AND
-	City = @City AND 
-	StateCode = @StateCode AND
-	ZipCode = @ZipCode)
+IF NOT EXISTS(SELECT * FROM [Address] WHERE 1=1
+	AND Street = @Street 
+	AND Street2 = @Street2
+	AND City = @City 
+	AND StateCode = @StateCode
+	AND ZipCode = @ZipCode
+	AND Token = @Token
+	AND GoogleId = @GoogleId)
 BEGIN
-	IF EXISTS(SELECT TOP 1 * FROM [Address] WHERE 1=1 AND
-	FirstName = @FirstName AND
-	LastName = @LastName AND 
-	Street = @Street AND 
-	Street1 = @Street1 AND
-	City = @City AND 
-	StateCode = @StateCode AND
-	ZipCode = @ZipCode AND
-	Active = 0)
-    BEGIN 
-        UPDATE [Adress] SET Active = 1 WHERE FirstName = @FirstName AND
-			LastName = @LastName AND 
-			Street = @Street AND 
-			Street1 = @Street1 AND
-			City = @City AND 
-			StateCode = @StateCode AND
-			ZipCode = @ZipCode;
-    END
-
-	SELECT TOP 1 * FROM [Address] WHERE 1=1 AND
-		FirstName = @FirstName AND
-		LastName = @LastName AND 
-		Street = @Street AND 
-		Street1 = @Street1 AND
-		City = @City AND 
-		StateCode = @StateCode AND
-		ZipCode = @ZipCode;
-END
-ELSE
 	INSERT INTO [Address]
 	OUTPUT INSERTED.Id INTO @InsertedAddress
-	SELECT NEWID(), @UserId, @Token, @FirstName, @LastName, @Street, @Street1, @City, 
-    @StateCode, @ZipCode, @IsBilling, 1, @PrimaryAddress, GETDATE(), GETDATE();
+	SELECT NEWID(), @Token, @GoogleId, @Street, @Street2, @City, @StateName, @StateCode, @ZipCode, 1, GETDATE(), GETDATE();
+END
+ELSE
+BEGIN 
+	INSERT INTO @InsertedAddress
+	SELECT TOP 1 Id FROM [Address] WHERE 1=1
+		AND Street = @Street 
+		AND Street2 = @Street2
+		AND City = @City 
+		AND StateCode = @StateCode
+		AND ZipCode = @ZipCode;
+END;
 
-SELECT TOP 1 * FROM [Address] WHERE Id = (SELECT TOP 1 Id FROM @InsertedAddress);";
+IF NOT EXISTS(SELECT * FROM UserAddress WHERE 1=1
+	AND AddressId = (SELECT Id From @InsertedAddress) 
+	AND UserId = @UserId
+	AND AddressTypeId = @AddressTypeId)
+BEGIN 
+	INSERT INTO UserAddress
+	SELECT @UserId, Id, @AddressTypeId, @Token, @PrimaryAddress, 1, GETDATE(), GETDATE()  FROM @InsertedAddress;
+END;
 
-            var a = Query<UserAddress>(sql, new
-            {
-                address.UserId,
-                address.Token,
-                FirstName = address.FirstName.Trim(),
-                LastName = address.LastName.Trim(),
-                Street = address.Street?.Trim(),
-                Street1 = address.Street1?.Trim(),
-                City = address.City?.Trim(),
-                StateCode = address.StateCode?.Trim(),
-                ZipCode = address.ZipCode.Trim(),
-                address.IsBilling,
-                address.PrimaryAddress,
-            }).FirstOrDefault();
+SELECT a.Id, a.Uid, ua.UserId, ua.AddressTypeId, ua.PrimaryAddress,
+	a.Street, a.Street2, a.City, a.StateName, a.StateCode, a.ZipCode, a.GoogleId 
+	FROM UserAddress ua
+LEFT JOIN Address a ON a.Id = ua.AddressId
+LEFT JOIN AddressType atp ON atp.Id = ua.AddressTypeId 
+WHERE 1=1 
+AND ua.Active = 1
+AND a.Id = (SELECT Id FROM @InsertedAddress)
+AND ua.UserId = @UserId;";
 
-            return a;
+            var insertedAddress = await QueryAsync<UserAddress>(sql, address.TrimAddress()).ConfigureAwait(false);
+
+            return insertedAddress.FirstOrDefault();
         }
 
-        public UserAddress EditAddress(UserAddress address)
+        public async Task<UserAddress> EditAddress(UserAddress address)
         {
-            return new UserAddress();
+
+            const string sql = @"
+UPDATE
+    UserAddress
+SET
+    UserAddress.PrimaryAddress = @PrimaryAddress,
+	UserAddress.AddressTypeId = @AddressTypeId,
+	UserAddress.Active = @Active
+FROM 
+    UserAddress ua
+    INNER JOIN [Address] a ON a.Id = ua.AddressId
+	LEFT JOIN SiteUser su on su.Id = ua.UserId
+WHERE 1=1
+AND su.Uid = @UserUid
+AND a.Id = @AddressId
+AND su.SiteId = @SiteId;
+";
+
+            var updatedAddress = await QueryAsync<UserAddress>(sql, address.TrimAddress()).ConfigureAwait(false);
+
+            return updatedAddress.FirstOrDefault();
         }
 
-        public void RemoveAddress(UserAddress address)
-        { }
-
-        public UserAddress GetAddress(UserAddress address)
+        public async Task<Guid?> RemoveAddress(Guid addressUid, Guid userUid)
         {
             const string sql = @"
-	SELECT TOP 1 * FROM [Address] WHERE 1=1 AND
-		FirstName = @FirstName AND
-		LastName = @LastName AND 
-		(Street = @Street OR @Street IS NULL) AND 
-		(Street1 = @Street1 OR @Street1 IS NULL) AND
-		(City = @City OR @City IS NULL) AND 
-		(StateCode = @StateCode OR @StateCode IS NULL) AND
-		ZipCode = @ZipCode AND 
-        IsBilling = @IsBilling;";
+DECLARE @RemovedAddressId TABLE ([Uid] UNIQUEIDENTIFIER);
+DECLARE @UserId INT = (SELECT Id FROM SiteUser WHERE UserUid = @UserUid);
 
-            var a = Query<UserAddress>(sql, new
-            {
-                address.UserId,
-                address?.Token,
-                FirstName = address.FirstName.Trim(),
-                LastName = address.LastName.Trim(),
-                Street = address.Street?.Trim(),
-                Street1 = address.Street1?.Trim(),
-                City = address.City?.Trim(),
-                StateCode = address.StateCode?.Trim(),
-                ZipCode = address.ZipCode.Trim(),
-                address.IsBilling,
-                address.PrimaryAddress,
-            }).FirstOrDefault();
+UPDATE [UserAddress] SET Active = 0 
+OUTPUT INSERTED.[AddressId] INTO @RemovedAddressId
+WHERE [Uid] = @Uid;
 
-            return a;
+SELECT Uid FROM Address WHERE Id = @RemovedAddressId;
+";
+            var removedUid = await QueryAsync<Guid>(sql, new { Uid = addressUid }).ConfigureAwait(false);
+
+            return removedUid.FirstOrDefault();
         }
 
-        public UserAddress GetAddress(int addressId)
+        public async Task<List<UserAddress>> GetUserAddresses(UserAddress address)
         {
-            return new UserAddress();
+            const string sql = @"
+SELECT ua.UserId, ua.AddressTypeId, ua.PrimaryAddress,
+	a.Street, a.Street2, a.City, a.StateName, a.StateCode, a.ZipCode, a.GoogleId 
+	FROM UserAddress ua
+LEFT JOIN Address a ON a.Id = ua.AddressId
+LEFT JOIN AddressType atp ON atp.Id = ua.AddressTypeId 
+LEFT JOIN SiteUser su ON su.Id = ua.UserId
+WHERE 1=1 
+AND ua.Active = 1
+AND a.Uid = @Uid
+AND su.Uid = @UserUid;";
+
+            var a = await QueryAsync<UserAddress>(sql, address.TrimAddress());
+
+            return a.ToList();
         }
 
-        public UserAddress GetAddress(Guid addressUid)
+        public async Task<UserAddress> GetAddressById(int addressId)
         {
-            return new UserAddress();
+            const string sql = @"
+SELECT ua.UserId, ua.AddressTypeId, ua.PrimaryAddress,
+	a.Street, a.Street2, a.City, a.StateName, a.StateCode, a.ZipCode, a.GoogleId 
+	FROM UserAddress ua
+LEFT JOIN Address a ON a.Id = ua.AddressId
+LEFT JOIN AddressType atp ON atp.Id = ua.AddressTypeId
+WHERE 1=1 
+AND ua.Active = 1
+AND a.Id = @AddressId;
+";
+            var address = await QueryAsync<UserAddress>(sql, new { AddressId = addressId }).ConfigureAwait(false);
+
+            return address.FirstOrDefault();
+        }
+    }
+
+    public static class AddressExtensionMethod
+    {
+        public static UserAddress TrimAddress(this UserAddress address)
+        {
+            address.FirstName = address.FirstName?.Trim();
+            address.LastName = address.LastName?.Trim();
+            address.Street = address.Street?.Trim();
+            address.Street2 = address.Street2?.Trim();
+            address.City = address.City?.Trim();
+            address.StateCode = address.StateCode?.Trim();
+            address.StateName = address.StateName?.Trim();
+            address.ZipCode = address.ZipCode?.Trim();
+
+            return address;
         }
     }
 }

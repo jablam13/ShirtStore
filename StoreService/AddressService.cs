@@ -4,6 +4,7 @@ using StoreService.Interface;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace StoreService
 {
@@ -16,43 +17,15 @@ namespace StoreService
             addressRep = _addressRep;
         }
 
-        public UserAddress AddAddress(UserAddress address)
+        public async Task<UserAddress> CreateAddress(UserAddress address)
         {
-            return addressRep.CreateAddress(address);
-        }
-        public UserAddress EditAddress(UserAddress address)
-        {
-            return addressRep.EditAddress(address);
-        }
-        public bool RemoveAddress(UserAddress address)
-        {
-            bool success = false;
-
-            try
+            if (!string.IsNullOrWhiteSpace(address.Street) && !string.IsNullOrWhiteSpace(address.City))
             {
-                addressRep.EditAddress(address);
-                success = true;
+                address = await addressRep.CreateAddress(address).ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                //Log exception
-                success = false;
-            }
-            return success;
+
+            return address;
         }
 
-        public UserAddress GetAddress(UserAddress address)
-        {
-            return addressRep.GetAddress(address);
-        }
-
-        public UserAddress GetAddress(int addressId)
-        {
-            return addressRep.GetAddress(addressId);
-        }
-        public UserAddress GetAddress(Guid addressUid)
-        {
-            return addressRep.GetAddress(addressUid);
-        }
     }
 }

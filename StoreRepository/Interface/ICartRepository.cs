@@ -1,23 +1,27 @@
 ﻿using StoreModel.Store;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace StoreRepository.Interface
 {
     public interface ICartRepository
     {
-        Cart GetCartAll(Guid visitorUid, Guid userUid);
-        Cart GetCart(Guid visitorUid, Guid userUid);
-        Cart GetVisitorCart(Guid visitorUid);
-        Cart GetUserCart(Guid userUid);
-        List<CartItem> GetCartItems(Guid cartUid);
-        List<CartItem> GetCartItems(int cartId);
-        CartItem AddCartItem(StoreItem cart, int cartId);
-        Cart UpdateCart(Cart cart);
-        CartItem EditCartItem(Cart cart);
-        bool RemoveCart(Cart cart);
-        bool RemoveCartItem(CartItem cart);
-        Cart MergeCarts(Guid userUid, Guid visitorUid);
-        bool CartExists(Guid userUid, Guid visitorUid);
+        Task<Cart> GetCartAll(Guid visitorUid, Guid userUid);
+        Task<Cart> GetCart(Guid visitorUid, Guid userUid);
+        Task<Cart> GetVisitorCart(Guid visitorUid);
+        Task<Cart> GetUserCart(Guid userUid);
+        Task<List<CartItem>> GetCartItems(Guid cartUid);
+        Task<List<CartItem>> GetCartItems(int cartId);
+        Task<CartItem> AddCartItem(StoreItem cart, int cartId);
+        Task<CartItem> EditCartItem(CartItem cart);
+        Task<Guid> RemoveCartItem(Guid cartItemUid);
+        Task<bool> CartExists(Guid userUid, Guid visitorUid);
+        Task<Cart> UpdateCart(Cart cart, Guid visitorUid, Guid userUid);
+        Task<Cart> UpdateCartAndItems(Cart userCart);
+        Task<Cart> UpdateCart(Cart userCart);
+        Task<CartItem> UpdateCartItem(CartItem userCart);
+        Task<bool> DeactivateVisitorCart(Guid uid);
+        Task<int> CartItemCount(Guid userUid);
     }
 }

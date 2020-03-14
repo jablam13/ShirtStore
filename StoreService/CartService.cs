@@ -3,7 +3,9 @@ using StoreRepository.Interface;
 using StoreService.Interface;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace StoreService
 {
@@ -17,82 +19,145 @@ namespace StoreService
             cartRep = _cartRep;
         }
 
-        public Cart GetCartAll(Guid userUid, Guid visitorUid)
+        public async Task<Cart> GetCartAll(Guid visitorUid, Guid userUid)
         {
-            return cartRep.GetCartAll(userUid, visitorUid);
+            return await cartRep.GetCartAll(visitorUid, userUid);
         }
 
-        public Cart GetCart(Guid userUid, Guid visitorUid)
+        public async Task<Cart> GetCart(Guid visitorUid, Guid userUid)
         {
-            return cartRep.GetCartAll(userUid, visitorUid);
+            return await cartRep.GetCartAll(visitorUid, userUid);
         }
 
-        public List<CartItem> GetCartItems(Guid cartUid)
+        public async Task<List<CartItem>> GetCartItems(Guid cartUid)
         {
-            return cartRep.GetCartItems(cartUid);
+            return await cartRep.GetCartItems(cartUid);
         }
 
-        public List<CartItem> GetCartItems(Guid userUid, Guid visitorUid)
+        public async Task<List<CartItem>> GetCartItems(Guid visitorUid, Guid userUid)
         {
-            var cart = cartRep.GetCart(userUid, visitorUid);
+            var cart = await cartRep.GetCart(visitorUid, userUid);
+
+            // throw error
+            if (cart == null)
+            {
+                return null;
+            }
+
+            return await cartRep.GetCartItems(cart.Id);
+        }
+
+        public async Task<CartItem> AddCartItem(StoreItem item, Guid visitorUid, Guid userUid)
+        {
+            var cart = await cartRep.GetCart(visitorUid, userUid);
 
             if (cart == null)
             {
                 return null;
             }
 
-            return cartRep.GetCartItems(cart.Id);
+            return await cartRep.AddCartItem(item, cart.Id);
         }
 
-        public CartItem AddCartItem(StoreItem item, Guid userUid, Guid visitorUid)
+        public async Task<CartItem> EditCartItem(CartItem item, Guid visitorUid, Guid userUid)
         {
-            var cart = cartRep.GetCart(userUid, visitorUid);
-
-            if (cart == null) {
-                return null;
-            }
-
-            return cartRep.AddCartItem(item, cart.Id);
-        }
-
-        public CartItem EditCartItem(StoreItem item, Guid userUid, Guid visitorUid)
-        {
-            var cart = cartRep.GetCart(userUid, visitorUid);
+            var cart = await cartRep.GetCart(visitorUid, userUid);
 
             if (cart == null)
             {
                 return null;
             }
 
-            return cartRep.AddCartItem(item, cart.Id);
+            return await cartRep.EditCartItem(item);
         }
 
-        public bool RemoveCartItem(CartItem item)
+        public async Task<Guid> RemoveCartItem(Guid itemUid)
         {
-            return cartRep.RemoveCartItem(item);
+            return await cartRep.RemoveCartItem(itemUid);
         }
 
-        public Cart MergeCarts(Guid userUid, Guid visitorUid)
+        public async Task<Cart> MergeCarts(Guid visitorUid, Guid userUid)
         {
             if (userUid == null && visitorUid == null)
                 return null;
 
-            var visitorCart = cartRep.GetVisitorCart(visitorUid);
-            var userCart = cartRep.GetUserCart(userUid);
+            var visitorCart = await cartRep.GetVisitorCart(visitorUid);
+            var userCart = await cartRep.GetUserCart(userUid);
 
             if (visitorCart == null && userCart == null)
-                userCart = cartRep.GetCartAll(userUid, visitorUid);
+                return await cartRep.GetCartAll(visitorUid, userUid);
 
-            if (visitorCart.Id == userCart.Id)
+            if (visitorCart == null && userCart != null)
+            {
                 return userCart;
+            }
 
             if (visitorCart != null && userCart == null)
             {
-                //update cart with userUid, userId
+                //merge visitorcart into usercart
                 visitorCart.UserUid = userUid;
-                userCart = cartRep.UpdateCart(visitorCart);
-                //update 
-            } 
+                //update usercart
+                var cart = await cartRep.UpdateCartAndItems(visitorCart);
+
+                return userCart;
+            }
+
+            if (visitorCart != null && userCart != null)
+            {
+                //merge visitorcart into usercart
+                //if visitor cart and user cart are different carts
+                if (userCart.Id != visitorCart.Id && visitorCart.CartItems.Count > 0)
+                {
+
+                }
+
+                //if visitor cart and user cart are the same cart with the same items
+                if (userCart.Id != visitorCart.Id)
+                {
+                    userCart = await MergeVisitorIntoUserCart(visitorCart, userCart);
+                    visitorCart.CartItems.ForEach(item => item.Active = 0);
+                }
+
+                //update usercart
+                userCart = await cartRep.UpdateCartAndItems(userCart);
+
+                //deactivate visitorcart
+                await cartRep.DeactivateVisitorCart(visitorCart.Uid);
+
+                return userCart;
+            }
+
+            return userCart;
+        }
+
+        private async Task<Cart> MergeVisitorIntoUserCart(Cart visitorCart, Cart userCart)
+        {
+            //merge visitor items with same item id into user items with same id
+            foreach (var vItem in visitorCart.CartItems)
+            {
+                foreach (var uItem in userCart.CartItems)
+                {
+                    if (uItem.Id == vItem.Id && uItem.Price == vItem.Price)
+                    {
+                        uItem.Quantity = (uItem.Quantity > vItem.Quantity) ? uItem.Quantity : vItem.Quantity;
+                    }
+
+                    if (vItem.Id == uItem.Id && vItem.Price != uItem.Price)
+                    {
+                        userCart.CartItems.Add(vItem);
+                    }
+                }
+            }
+
+            //add visitor items not in user items
+            var newItems = new List<CartItem>();
+
+            newItems = visitorCart.CartItems
+                .Where(visitorItem =>
+                    !userCart.CartItems.Any(userItem => userItem.Id == visitorItem.Id))
+                .ToList();
+            if (newItems.Count > 0)
+                userCart.CartItems.AddRange(newItems);
 
             return userCart;
         }

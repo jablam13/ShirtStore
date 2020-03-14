@@ -15,7 +15,7 @@ namespace StoreModel.Checkout
         public decimal Amount { get; set; }
         public UserAddress ShippingAddress { get; set; }
         public UserAddress BillingAddress { get; set; }
-        public List<StoreItem> OrderItems { get; set; }
+        public List<OrderItem> OrderItems { get; set; }
     }
 
     public class CheckoutTest

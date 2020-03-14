@@ -9,7 +9,6 @@ namespace StoreModel.Checkout
     {
         public int Id { get; set; }
         public Guid Uid { get; set; }
-        public string BraintreeNonce { get; set; }
         public int UserId { get; set; }
         public int ShippingId { get; set; }
         public int BillingId { get; set; }
@@ -24,16 +23,9 @@ namespace StoreModel.Checkout
         public decimal ShippingCost { get; set; }
         public decimal Discount { get; set; }
         public decimal Total { get; set; }
-        public string LastFourDigits { get; set; }
-        public string IpAddress { get; set; }
-        public string ProcessorResponseCode { get; set; }
-        public string ProcessorResponseText { get; set; }
-        public string CvvResponseCode { get; set; }
-        public string AvsStreetAddressResponseCode { get; set; }
-        public string AvsPostalCodeResponseCode { get; set; }
-        public string AvsErrorResponseCode { get; set; }
-        public List<OrderItem> OrderItems { get; set; }
-        public UserAddress BillingAddress { get; set; }
-        public UserAddress ShippingAddress { get; set; }
+        public string IPAddress { get; set; }
+        public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+        public UserAddress BillingAddress { get; set; } = new UserAddress();
+        public UserAddress ShippingAddress { get; set; } = new UserAddress();
     }
 }

@@ -17,50 +17,60 @@ namespace ShirtStoreService.Controllers
     public class CartController : BaseController
     {
         private readonly ICartService cartService;
+        private readonly IOrderService orderService;
 
         public CartController(
             IOptions<AppSettings> _appSettings,
             IHttpContextAccessor _httpContextAccessor,
             IAccountService _userService,
+            IOrderService _orderService,
             ICartService _cartService) : base(_appSettings, _httpContextAccessor, _userService)
         {
             cartService = _cartService;
+            orderService = _orderService;
         }
 
-        // GET api/<controller>/5
         [HttpGet("")]
-        public Cart Get()
+        public async Task<Cart> Get()
         {
-            //getuser id
+            var visitorUid = await GetVisitorUid().ConfigureAwait(false);
             var userUid = GetUserUid();
 
-            //get visitor id
-
-            //return cartService.GetCart(userUid, visitorUid);
-            return new Cart();
+            return await cartService.GetCartAll(visitorUid, userUid).ConfigureAwait(false);
         }
 
-        // POST api/<controller>
-        [HttpPost("addtocart")]
-        public CartItem AddCartItem([FromBody]StoreItem item)
+        [HttpPost("add")]
+        public async Task<CartItem> AddCartItem([FromBody]StoreItem item)
         {
             var userUid = GetUserUid();
-            var visitorUid = Guid.NewGuid();
-            var addedCartItem = cartService.AddCartItem(item, userUid, visitorUid);
-
-            return addedCartItem;
+            var visitorUid = await GetVisitorUid().ConfigureAwait(false);
+            return await cartService.AddCartItem(item, visitorUid, userUid).ConfigureAwait(false);
         }
 
-        // PUT api/<controller>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody]string value)
+        [HttpPut("edit")]
+        public async Task<CartItem> EditCartItem([FromBody]CartItem item)
         {
+            var userUid = GetUserUid();
+            var visitorUid = await GetVisitorUid().ConfigureAwait(false);
+            return await cartService.EditCartItem(item, visitorUid, userUid).ConfigureAwait(false);
         }
 
-        // DELETE api/<controller>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
+        [HttpDelete("remove/{uid}")]
+        public async Task<Guid> RemoveCartItem(Guid uid)
         {
+            return await cartService.RemoveCartItem(uid).ConfigureAwait(false);
+        }
+
+        [HttpPost("submit")]
+        public async Task<IActionResult> CreateOrder()
+        {
+            var userUid = GetUserUid();
+            if (userUid == Guid.Empty)
+                return Unauthorized();
+
+            var order = await orderService.GetOrder(userUid, 1);
+
+            return Ok(order);
         }
     }
 }

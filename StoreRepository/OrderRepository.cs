@@ -6,102 +6,112 @@ using System.Linq;
 using Microsoft.Extensions.Options;
 using StoreModel.Checkout;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace StoreRepository
 {
     public class OrderRepository : BaseRepository, IOrderRepository
     {
-        public OrderRepository(IOptions<AppSettings> appSettings) : base(appSettings)
-        { }
+        private readonly IAddressRepository addressRep;
 
-        public Order CreateOrder(Order order)
+        public OrderRepository(IOptions<AppSettings> appSettings, IAddressRepository _addressRep) : base(appSettings)
+        {
+            addressRep = _addressRep;
+        }
+
+
+        public async Task<Order> CreateOrder(Guid userUid, string ipAddress)
         {
             const string sql = @"
-DECLARE @InsertedOrder TABLE ([Id] INT);
+DECLARE @OrderId TABLE ([Id] INT);
+DECLARE @UserId INT = (SELECT Id FROM SiteUser WHERE [Uid] = @UserUid AND SiteId = @SiteId);
+DECLARE @Email NVARCHAR(200) = (SELECT EmailAddress FROM SiteUser WHERE [Uid] = @UserUid AND SiteId = @SiteId);
+
+--IF EXISTS(SELECT * FROM Orders WHERE UserId = @UserId AND OrderStateId = 1)
+BEGIN
+    UPDATE Orders SET OrderStateId = 4, LastModifiedDate = GETDATE() WHERE UserId = @UserId;
+END;
 
 INSERT INTO Orders
-OUTPUT INSERTED.Id INTO @InsertedOrder
-SELECT NEWID(), @UserId, @ShippingId, @BillingId, @Email, 1, GETDATE(), NULL, @TokenId, @CardAuth, @CardType, @SubTotal, @Tax, @ShippingCost, @Discount, @Total, @IpAddress;
+OUTPUT INSERTED.[Id] INTO @OrderId
+SELECT NEWID(), @UserId, NULL, NULL, @Email, 1, GETDATE(), NULL, NULL, NULL, NULL, 0.00, NULL, 8.99, NULL, 0.00, @IPAddress, GETDATE(), GETDATE();
 
-SELECT TOP 1 * FROM Orders WHERE Id = (SELECT TOP 1 Id FROM @InsertedOrder);
+SELECT Id, [Uid], UserId, ShippingId, BillingId, Email, OrderStateId, OrderDate, ProcessedDate, 
+    TokenId, CardAuth, Subtotal, Tax, ShippingCost, Discount, Total, IPAddress, CreatedDate, LastModifiedDate
+FROM Orders WHERE Id = (SELECT Id FROM @OrderId);
 ";
-
-            var o = Query<Order>(sql, order).FirstOrDefault();
-
-            order.OrderItems.Select(item => { item.OrderId = o.Id; return item; }).ToList();
-            o.OrderItems = CreateOrderItems(order.OrderItems);
-
-            return o;
+            var success = await QueryAsync<Order>(sql, new { UserUid = userUid, SiteId = siteId, IPAddress = ipAddress}).ConfigureAwait(false);
+            return success.FirstOrDefault();
         }
 
-        public List<OrderItem> CreateOrderItems(List<OrderItem> items)
+        public async Task<List<OrderItem>> CreateOrderItemsFromCart(Guid userUid, int orderId)
         {
             const string sql = @"
-DECLARE @InsertedOrderItem TABLE ([Id] INT);
-DECLARE @StoreItemInfoId INT = (SELECT Id FROM StoreItemInfo WHERE Uid = @StoreItemInfoUid);
+DECLARE @OrderItemIds TABLE ([Id] INT);
 
 INSERT INTO OrderItem
-OUTPUT INSERTED.Id INTO @InsertedOrderItem
-SELECT NEWID(), @OrderId, @StoreItemInfoId, @Quantity, @Price, @Tax, @ShippingCost, @Discount, @Tracking, 0;
+OUTPUT INSERTED.[Id] INTO @OrderItemIds
+SELECT NEWID(), @OrderId, ci.Id, ci.Quantity, ci.Price, ci.Price * .11, 8.99, NULL, '', 0, GETDATE()
+FROM CartItem ci 
+LEFT JOIN Cart c ON c.Id = ci.CartId 
+WHERE 1=1 
+AND c.UserUid = @UserUid 
+AND ci.Active = 1 
+AND ci.Quantity > 0
+AND ci.Price >= 0;
 
-SELECT TOP 1 * FROM OrderItem WHERE Id = (SELECT TOP 1 Id FROM @InsertedOrderItem)";
-
-            var itemList = new List<OrderItem>();
-
-            foreach (var o in items)
-            {
-                var itemAdded = Query<OrderItem>(sql, new
-                {
-                    o.OrderId,
-                    o.StoreItemInfoUid,
-                    o.Quantity,
-                    o.Price,
-                    o.Tax,
-                    o.ShippingCost,
-                    o.Discount,
-                    o.Tracking
-                }).FirstOrDefault();
-                itemList.Add(itemAdded);
-            }
-
-            return itemList ?? new List<OrderItem>();
+SELECT Id, [Uid], OrderId, CartItemId, Quantity, Price, Tax, ShippingCost, Discount, Tracking, IsBackorder, CreatedDate 
+FROM OrderItem WHERE OrderId = @OrderId;
+";
+            var success = await QueryAsync<OrderItem>(sql, new {
+                UserUid = userUid,
+                OrderId = orderId,
+                SiteId = siteId,
+            }).ConfigureAwait(false);
+            return success.ToList();
         }
 
-        public void ProcessOrder(Order order)
+        public async Task<Order> GetOrderAll(Guid userUid, int statusId)
+        {
+            var order = await GetOrder(userUid, statusId).ConfigureAwait(false);
+
+            var orderItems = GetOrderItems(order.Id);
+            var shippingAddress = addressRep.GetAddressById(order.ShippingId);
+            var billingAddress = addressRep.GetAddressById(order.BillingId);
+
+            await Task.WhenAll(orderItems, shippingAddress, billingAddress);
+
+            order.OrderItems = await orderItems;
+            order.ShippingAddress = await shippingAddress;
+            order.BillingAddress = await billingAddress;
+
+            return order;
+        }
+
+        public async Task<Order> GetOrder(Guid userUid, int statusId)
         {
             const string sql = @"
-UPDATE Orders SET OrderStateId = 2, CardType = @CardType, TokenId = @TokenId, ProcessedDate = GETDATE()  WHERE Id = @OrderId;
+DECLARE @UserId INT = (SELECT Id FROM SiteUser WHERE [Uid] = @UserUid AND SiteId = 1);
+DECLARE @Email NVARCHAR(200) = (SELECT EmailAddress FROM SiteUser WHERE [Uid] = @UserUid AND SiteId = @SiteId);
+
+SELECT Id, [Uid], UserId, ShippingId, BillingId, Email, OrderStateId, OrderDate, ProcessedDate, 
+    TokenId, CardAuth, CardType, Subtotal, Tax, ShippingCost, Discount, Total, IPAddress, CreatedDate, LastModifiedDate
+FROM Orders WHERE 1=1
+AND UserId = @UserId
+AND OrderStatusId = @OrderStatusId;
 ";
-            Execute(sql, order);
+            var success = await QueryAsync<Order>(sql, new { UserUid = userUid, OrderStatusId = statusId, SiteId = siteId }).ConfigureAwait(false);
+            return success.FirstOrDefault();
+        }
 
-            const string sqlItems = @"
-DECLARE @UserUid INT = (SELECT Uid FROM UserDetails WHERE Id = @UserId);
-DECLARE @CartId INT = (SELECT Id FROM Cart WHERE UserUid = @UserUid );
-DECLARE @StoreItemInfoId INT = (SELECT Id FROM StoreItemInfo WHERE Uid = @StoreItemInfoUid);
-DECLARE @UpdatedItems TABLE (Id INT, Quantity INT);
-
-UPDATE CartItem SET Quantity = 0 
-OUTPUT INSERTED.Id AS Id, INSERTED.Quantity AS Quantity INTO @UpdatedItems(Id, Quantity)
-WHERE CartId = @CartId AND ItemId = @StoreItemInfoId
-			
-INSERT INTO CartLog 
-SELECT NEWID(), ici.Id, -ici.Quantity, sii.Price, 6,GETDATE()
-FROM CartItem ci JOIN @UpdatedItems ici ON ici.Id = ci.Id 
-LEFT JOIN StoreItemInfo sii on sii.Id = ci.ItemId 
-WHERE ici.Quantity > 0;";
-
-            //foreach (var item in order.OrderItems)
-            //{
-            //    DynamicParameters parameter = new DynamicParameters();
-
-            //    Execute(sqlItems, new
-            //    {
-            //        OrderId = order.Id,
-            //        StoreItemUid = item.StoreItemInfoUid,
-            //        Quantity = item.Quantity,
-            //        UserId = order.UserId
-            //    });
-            //}
+        public async Task<List<OrderItem>> GetOrderItems(int orderId)
+        {
+            const string sql = @"
+SELECT Id, [Uid], OrderId, CartItemId, Quantity, Price, Tax, ShippingCost, Discount, Tracking, IsBackorder, CreatedDate 
+FROM OrderItem WHERE OrderId = @OrderId;
+";
+            var orderItems = await QueryAsync<OrderItem>(sql, new { OrderId = orderId, SiteId = siteId });
+            return orderItems.ToList();
         }
     }
 }

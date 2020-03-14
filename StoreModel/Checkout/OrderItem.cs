@@ -9,7 +9,11 @@ namespace StoreModel.Checkout
         public int Id { get; set; }
         public Guid Uid { get; set; }
         public int OrderId { get; set; }
-        public Guid StoreItemInfoUid { get; set; }
+        public int StoreItemId { get; set; }
+        public int CartItemId { get; set; }
+        public Guid OrderUid { get; set; }
+        public Guid StoreItemUid { get; set; }
+        public Guid CartItemUid { get; set; }
         public int Quantity { get; set; }
         public decimal Price { get; set; }
         public decimal Tax { get; set; }

@@ -33,7 +33,7 @@ namespace ShirtStoreService.Controllers
 
         public override void OnActionExecuting(ActionExecutingContext context)
         {
-            string uid = context.HttpContext.Response.Headers["X-Custom"].ToString();
+            string uid = context.HttpContext.Response.Headers["visitor"].ToString();
 
             if (string.IsNullOrEmpty(uid))
             {
@@ -53,7 +53,7 @@ namespace ShirtStoreService.Controllers
 
         private async Task<string> ConfigureVisitorUid(ActionExecutingContext context)
         {
-            string uid = context.HttpContext.Request.Headers["X-Custom"].ToString();
+            string uid = context.HttpContext.Request.Headers["visitor"].ToString();
 
             if (string.IsNullOrEmpty(uid))
             {
@@ -77,16 +77,24 @@ namespace ShirtStoreService.Controllers
             return userUid;
         }
 
-        protected Guid GetVisitorUid()
+        protected async Task<Guid> GetVisitorUid()
         {
             string uid = httpContextAccessor.HttpContext.Request.Headers["visitor"].ToString();
 
             if (string.IsNullOrEmpty(uid))
             {
-                uid = accountService.GetVisitorUid().Result.ToString();
+                var newUid = await accountService.GetVisitorUid();
+                uid = newUid.ToString();
             }
 
             return Guid.Parse(uid);
         }
+
+
+        protected string GetIpValue()
+        {
+            return httpContextAccessor.HttpContext.Connection.RemoteIpAddress.ToString();
+        }
+
     }
 }

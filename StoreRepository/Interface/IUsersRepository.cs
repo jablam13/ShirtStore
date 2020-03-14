@@ -20,5 +20,6 @@ namespace StoreRepository.Interface
         ForgotPassword IsUsernameAvailable(Guid validator);
         bool ResetPassword(string hash, string salt, string email);
         Task<Guid> GetVisitorUid();
+        Task<bool> UpdateUserVisitor(Guid visitorUid, Guid userUid);
     }
 }

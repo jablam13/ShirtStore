@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PaymentService.Braintree;
 using StoreModel.Account;
@@ -21,41 +22,79 @@ using Stripe;
 
 namespace ShirtStoreService.Controllers
 {
-    [Route("checkout")]
+    [Route("api/[controller]")]
     public class CheckoutController : BaseController
     {
         private readonly ICartService cartService;
         private readonly IAccountService userService;
+        private readonly IOrderService orderService;
         private readonly IBraintreeService braintreeGateway;
+        private readonly ILogger<CheckoutController> logger;
 
         public CheckoutController(
             ICartService _cartService,
+            IOrderService _orderService,
             IOptions<AppSettings> _appSettings,
             IHttpContextAccessor _httpContextAccessor,
-            IBraintreeService _braintreeService,
+            ILogger<CheckoutController> _logger,
             IAccountService _userService) : base(_appSettings, _httpContextAccessor, _userService)
         {
             cartService = _cartService;
             userService = _userService;
-            braintreeGateway = _braintreeService;
+            orderService = _orderService;
+            logger = _logger;
         }
 
-        [HttpGet("user")]
-        public IActionResult GetUser()
+        [Authorize]
+        [HttpGet("load")]
+        public async Task<IActionResult> CreateOrder()
         {
-            var uid = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
-            var firstName = User.FindFirst("FirstName")?.Value ?? "EmptyFirstName";
-            var lastName = User.FindFirst("LastName")?.Value ?? "EmptyLastName";
-            var emailAddress = User.FindFirst(ClaimTypes.Email)?.Value ?? "EmptyEmail";
-            var user = new Users()
-            {
-                Uid = uid,
-                FirstName = firstName,
-                LastName = lastName,
-                EmailAddress = emailAddress,
-            };
+            var userUid = GetUserUid();
+            if (userUid == Guid.Empty)
+                return Unauthorized();
 
-            return Ok(user);
+            StoreModel.Checkout.Order order;
+            string ipAddress = GetIpValue();
+
+            try
+            {
+                order = await orderService.CreateOrder(userUid, ipAddress).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex.Message, ex);
+                return BadRequest();
+            }
+
+            return Ok(order);
+        }
+
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> GetOrder()
+        {
+            var userUid = GetUserUid();
+            if (userUid == Guid.Empty)
+                return Unauthorized();
+
+            string ipAddress = GetIpValue();
+
+            var order = await orderService.GetOrder(userUid, 1).ConfigureAwait(false);
+            return Ok(order);
+        }
+
+        [Authorize]
+        [HttpPost("submit")]
+        public async Task<IActionResult> Submit([FromBody]Checkout checkout)
+        {
+            var userUid = GetUserUid();
+            if (userUid == Guid.Empty)
+                return Unauthorized();
+
+            var order = await orderService.GetOrder(userUid, 1).ConfigureAwait(false);
+            await orderService.ProcessOrder(order).ConfigureAwait(false);
+
+            return Ok();
         }
 
         [HttpGet("teststripe")]
@@ -72,86 +111,6 @@ namespace ShirtStoreService.Controllers
             var response = service.Create(options);
 
             return Ok(response);
-        }
-
-        // GET api/<controller>/5
-        [HttpPost("submit")]
-        public IActionResult Submit([FromBody]Checkout checkout)
-        {
-            //validate user 
-            //find,create user in braintree,db,identity
-            var user = new Users()
-            {
-                Uid = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value),
-                FirstName = User.FindFirst("FirstName")?.Value,
-                LastName = User.FindFirst("LastName")?.Value,
-                EmailAddress = User.FindFirst(ClaimTypes.Email)?.Value,
-            };
-
-            //validate addresses 
-
-            //find,create addresses in braintree,db,identity
-
-            //submit order 
-
-            var result = braintreeGateway.Order(checkout, user);
-            return Ok(result);
-        }
-
-        // GET api/<controller>/5
-        [HttpPost("submittest")]
-        public IActionResult SubmitTest([FromBody]CheckoutTest checkout)
-        {
-            var userGuid = Guid.Empty;
-
-
-            return Ok(checkout);
-        }
-
-        // GET api/<controller>/5
-        [HttpPost("submitaddress")]
-        public IActionResult SubmitAddress([FromBody]UserAddress address)
-        {
-            var userGuid = Guid.Empty;
-
-
-            return Ok(address);
-        }
-
-        // GET api/<controller>/5
-        [HttpPost("submititems")]
-        public IActionResult SubmitOrderItems([FromBody]StoreItem[] items)
-        {
-            var userGuid = Guid.Empty;
-
-
-            return Ok(items);
-        }
-
-        // POST api/<controller>
-        [HttpPost]
-        public void Post([FromBody]string value)
-        {
-        }
-
-        // PUT api/<controller>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody]string value)
-        { }
-
-        // GET: api/<controller>
-        [HttpGet("bt/token")]
-        public IActionResult GetClientToken()
-        {
-            var token = braintreeGateway.GenerateClientToken();
-            return Ok(token);
-        }
-
-        // GET: api/<controller>
-        [HttpPost("bt/nonce")]
-        public string GetPaymentNonce([FromBody]string token)
-        {
-            return braintreeGateway.GeneratePaymentNonce(token);
         }
     }
 }
