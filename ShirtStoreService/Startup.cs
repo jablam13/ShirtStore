@@ -17,6 +17,8 @@ using Newtonsoft.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Hosting;
 using Stripe;
+using PaymentService.Stripe;
+using ShirtStoreService.Controllers.Filters;
 
 namespace ShirtStoreService
 {
@@ -45,6 +47,7 @@ namespace ShirtStoreService
             services.AddRepositoryCollection(Configuration);
             services.AddServiceCollection(Configuration);
             services.AddBraintree(Configuration);
+            services.AddStripe(Configuration);
             services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
 
@@ -92,6 +95,9 @@ namespace ShirtStoreService
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+
+            app.UseVisitorHeader();
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -117,12 +123,6 @@ namespace ShirtStoreService
                 endpoints.MapControllers();
             });
 
-            /// Add header:
-            app.Use((context, next) =>
-            {
-                context.Response.Headers.Add("test","test-header");
-                return next.Invoke();
-            });
         }
     }
 }

@@ -9,6 +9,7 @@ using System.Security.Claims;
 using StoreModel.Generic;
 using StoreService.Interface;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -31,43 +32,6 @@ namespace ShirtStoreService.Controllers
             httpContextAccessor = _httpContextAccessor;
         }
 
-        public override void OnActionExecuting(ActionExecutingContext context)
-        {
-            string uid = context.HttpContext.Response.Headers["visitor"].ToString();
-
-            if (string.IsNullOrEmpty(uid))
-            {
-                uid = accountService.GetVisitorUid().Result.ToString();
-                context.HttpContext.Response.Headers.Add("X-Custom", uid);
-                context.HttpContext.Response.Headers.Add("visitor", uid);
-                context.HttpContext.Response.Headers.Add("Access-Control-Expose-Headers", "X-Custom, visitor");
-            }
-        }
-
-        public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
-        {
-            await ConfigureVisitorUid(context);
-
-            await next().ConfigureAwait(false);
-        }
-
-        private async Task<string> ConfigureVisitorUid(ActionExecutingContext context)
-        {
-            string uid = context.HttpContext.Request.Headers["visitor"].ToString();
-
-            if (string.IsNullOrEmpty(uid))
-            {
-                var visitorUid = await accountService.GetVisitorUid().ConfigureAwait(false);
-                uid = visitorUid.ToString();
-            }
-
-            context.HttpContext.Response.Headers.Add("X-Custom", uid);
-            context.HttpContext.Response.Headers.Add("visitor", uid);
-            context.HttpContext.Response.Headers.Add("Access-Control-Expose-Headers", "X-Custom, visitor");
-
-            return uid;
-        }
-
         protected Guid GetUserUid()
         {
             if (User != null && (User?.Claims?.Count() ?? 0) > 0)
@@ -75,25 +39,6 @@ namespace ShirtStoreService.Controllers
                 Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier).Value.ToString(), out userUid);
             }
             return userUid;
-        }
-
-        protected async Task<Guid> GetVisitorUid()
-        {
-            string uid = httpContextAccessor.HttpContext.Request.Headers["visitor"].ToString();
-
-            if (string.IsNullOrEmpty(uid))
-            {
-                var newUid = await accountService.GetVisitorUid();
-                uid = newUid.ToString();
-            }
-
-            return Guid.Parse(uid);
-        }
-
-
-        protected string GetIpValue()
-        {
-            return httpContextAccessor.HttpContext.Connection.RemoteIpAddress.ToString();
         }
 
     }

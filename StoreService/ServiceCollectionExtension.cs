@@ -14,6 +14,7 @@ namespace StoreService
             if (config == null) throw new ArgumentNullException(nameof(config));
 
             // collection.Configure<AccountServiceOptions>(config);
+            collection.AddScoped<IUserVisitorService, UserVisitorService>();
             collection.AddTransient<IAccountService, AccountService>();
             collection.AddTransient<ICartService, CartService>();
             collection.AddTransient<IOrderService, OrderService>();

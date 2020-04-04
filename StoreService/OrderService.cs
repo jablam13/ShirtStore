@@ -76,14 +76,29 @@ namespace StoreService
 
                 return order;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 throw;
             }
         }
 
-        public async Task ProcessOrder(Order order)
+        public async Task ProcessOrder(Checkout checkout, Guid userUid)
         {
+            var order = await orderRep.InitProcessOrder(checkout, userUid).ConfigureAwait(false);
+
+            order.ShippingAddress.UserUid = userUid;
+            order.BillingAddress.UserUid = userUid;
+
+            var orderItemsTask = orderRep.GetOrderItems(order.Id);
+            var shippingAddressTask = addressService.CreateAddress(order.ShippingAddress);
+            var billingAddressTask = addressService.CreateAddress(order.BillingAddress);
+
+            await Task.WhenAll(orderItemsTask, shippingAddressTask, billingAddressTask).ConfigureAwait(false);
+
+            order.OrderItems = await orderItemsTask.ConfigureAwait(false);
+            order.ShippingAddress = await shippingAddressTask.ConfigureAwait(false);
+            order.BillingAddress = await billingAddressTask.ConfigureAwait(false);
+
 
         }
     }

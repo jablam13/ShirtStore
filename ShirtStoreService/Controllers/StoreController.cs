@@ -16,16 +16,19 @@ namespace ShirtStoreService.Controllers
     [Route("api/[controller]")]
     public class StoreController : BaseController
     {
-        private readonly IStoreService storeService;
+        private readonly IStoreService _storeService;
+        private readonly IUserVisitorService _userVisitorService;
         private Guid defaultStoreUid;
 
         public StoreController(
-            IStoreService _storeService,
+            IStoreService storeService,
+            IUserVisitorService userVisitorService,
             IOptions<AppSettings> _appSettings,
             IHttpContextAccessor _httpContextAccessor,
             IAccountService _userService) : base(_appSettings, _httpContextAccessor, _userService)
         {
-            storeService = _storeService;
+            _storeService = storeService;
+            _userVisitorService = userVisitorService;
             defaultStoreUid = Guid.Parse("07A06F5C-6C91-4070-AEF7-7D8E44EB24E5");
         }
 
@@ -35,10 +38,10 @@ namespace ShirtStoreService.Controllers
         {
             var storeUid = _storeUid.HasValue ? _storeUid.Value : defaultStoreUid;
             userUid = GetUserUid();
-            visitorUid = GetVisitorUid().Result;
+            visitorUid = _userVisitorService.GetVisitorUid().Result;
 
             // return storeUid != Guid.Empty ? storeService.GetStore(storeUid, userUid, visitorUid) : new Store();
-            return Ok(storeService.GetStore(storeUid, userUid, visitorUid));
+            return Ok(_storeService.GetStore(storeUid, userUid, visitorUid));
         }
 
 
@@ -47,8 +50,8 @@ namespace ShirtStoreService.Controllers
         {
             Guid itemUid = itemuid.HasValue ? itemuid.Value : Guid.Empty;
 
-            var visitorUid = GetVisitorUid().Result;
-            return Ok(storeService.GetStoreItem(itemUid, GetUserUid(), visitorUid));
+            var visitorUid = _userVisitorService.GetVisitorUid().Result;
+            return Ok(_storeService.GetStoreItem(itemUid, GetUserUid(), visitorUid));
 
         }
     }

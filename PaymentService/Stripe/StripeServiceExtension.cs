@@ -12,7 +12,7 @@ namespace PaymentService.Stripe
             if (collection == null) throw new ArgumentNullException(nameof(collection));
             if (config == null) throw new ArgumentNullException(nameof(config));
 
-            StripeConfiguration.ApiKey = config.GetSection("Stripe")["SecretKey"];
+            StripeConfiguration.ApiKey = config.GetSection("StripeSettings")["SecretKey"];
             collection.AddTransient<IStripeService, StripeService>();
             return collection;
         }

@@ -14,6 +14,8 @@ namespace StoreModel.Checkout
         public Guid OrderUid { get; set; }
         public Guid StoreItemUid { get; set; }
         public Guid CartItemUid { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
         public int Quantity { get; set; }
         public decimal Price { get; set; }
         public decimal Tax { get; set; }

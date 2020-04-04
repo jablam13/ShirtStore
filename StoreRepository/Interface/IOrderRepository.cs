@@ -13,5 +13,6 @@ namespace StoreRepository.Interface
         Task<Order> GetOrderAll(Guid userUid, int statusId);
         Task<Order> GetOrder(Guid userUid, int statusId);
         Task<List<OrderItem>> GetOrderItems(int orderId);
+        Task<Order> InitProcessOrder(Checkout checkout, Guid userUid);
     }
 }

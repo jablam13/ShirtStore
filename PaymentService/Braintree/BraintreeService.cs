@@ -178,8 +178,8 @@ namespace PaymentService.Braintree
                 Customer = user,
                 BillingAddress = billingAddress,
                 ShippingAddress = shippingAddress,
-                Amount = checkout.Amount,
-                PaymentMethodNonce = checkout.BraintreeNonce,
+                //Amount = checkout.Amount,
+                //PaymentMethodNonce = checkout.BraintreeNonce,
                 Options = new TransactionOptionsRequest
                 {
                     SubmitForSettlement = true,

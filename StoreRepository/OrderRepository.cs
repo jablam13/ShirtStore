@@ -49,6 +49,7 @@ FROM Orders WHERE Id = (SELECT Id FROM @OrderId);
             const string sql = @"
 DECLARE @OrderItemIds TABLE ([Id] INT);
 
+--insert order items from cart
 INSERT INTO OrderItem
 OUTPUT INSERTED.[Id] INTO @OrderItemIds
 SELECT NEWID(), @OrderId, ci.Id, ci.Quantity, ci.Price, ci.Price * .11, 8.99, NULL, '', 0, GETDATE()
@@ -60,8 +61,28 @@ AND ci.Active = 1
 AND ci.Quantity > 0
 AND ci.Price >= 0;
 
-SELECT Id, [Uid], OrderId, CartItemId, Quantity, Price, Tax, ShippingCost, Discount, Tracking, IsBackorder, CreatedDate 
-FROM OrderItem WHERE OrderId = @OrderId;
+--update orders totals from order items
+;WITH SumOrderItems AS (
+	SELECT OrderId, SUM(ISNULL(Price, 0)) AS Subtotal, SUM(ISNULL(Tax, 0)) AS Tax, SUM(ISNULL(Discount, 0)) AS Discount FROM OrderItem WHERE OrderId = @OrderId GROUP BY OrderId 
+)
+UPDATE
+    Orders
+SET
+    Subtotal = soi.Subtotal, Tax = soi.Tax, Discount = soi.Discount, Total = soi.Subtotal + soi.Tax + o.ShippingCost - soi.Discount
+FROM
+    Orders o
+INNER JOIN
+    SumOrderItems soi
+ON 
+    o.Id = soi.OrderId;
+
+--return order items
+SELECT oi.Id, oi.[Uid], oi.OrderId, oi.CartItemId, oi.Quantity, oi.Price, oi.Tax, oi.ShippingCost, oi.Discount, oi.Tracking, oi.IsBackorder, oi.CreatedDate,
+    si.Name, si.Description, si.SmallImg
+FROM OrderItem oi
+JOIN CartItem ci ON ci.Id = oi.CartItemId
+JOIN StoreItem si ON si.Id = ci.ItemId
+WHERE OrderId = @OrderId;
 ";
             var success = await QueryAsync<OrderItem>(sql, new {
                 UserUid = userUid,
@@ -112,6 +133,15 @@ FROM OrderItem WHERE OrderId = @OrderId;
 ";
             var orderItems = await QueryAsync<OrderItem>(sql, new { OrderId = orderId, SiteId = siteId });
             return orderItems.ToList();
+        }
+        public async Task<Order> InitProcessOrder(Checkout checkout, Guid userUid)
+        {
+            const string sql = @"
+SELECT Id, [Uid], OrderId, CartItemId, Quantity, Price, Tax, ShippingCost, Discount, Tracking, IsBackorder, CreatedDate 
+FROM OrderItem WHERE OrderId = @OrderId;
+";
+            var order = await QueryAsync<Order>(sql, new { SiteId = siteId }).ConfigureAwait(false);
+            return order.FirstOrDefault();
         }
     }
 }

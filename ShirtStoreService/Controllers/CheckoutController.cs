@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PaymentService.Braintree;
+using PaymentService.Stripe;
 using StoreModel.Account;
 using StoreModel.Checkout;
 using StoreModel.Generic;
@@ -25,23 +26,29 @@ namespace ShirtStoreService.Controllers
     [Route("api/[controller]")]
     public class CheckoutController : BaseController
     {
-        private readonly ICartService cartService;
-        private readonly IAccountService userService;
-        private readonly IOrderService orderService;
-        private readonly IBraintreeService braintreeGateway;
+        private readonly ICartService _cartService;
+        private readonly IAccountService _userService;
+        private readonly IOrderService _orderService;
+        private readonly IUserVisitorService _userVisitorService;
+        private readonly IBraintreeService _braintreeGateway;
+        private readonly IStripeService _stripeService;
         private readonly ILogger<CheckoutController> logger;
 
         public CheckoutController(
-            ICartService _cartService,
-            IOrderService _orderService,
-            IOptions<AppSettings> _appSettings,
+            ICartService cartService,
+            IOrderService orderService,
+            IUserVisitorService userVisitorService,
+            IOptions<AppSettings> appSettings,
             IHttpContextAccessor _httpContextAccessor,
             ILogger<CheckoutController> _logger,
-            IAccountService _userService) : base(_appSettings, _httpContextAccessor, _userService)
+            IStripeService stripeService,
+            IAccountService userService) : base(appSettings, _httpContextAccessor, userService)
         {
-            cartService = _cartService;
-            userService = _userService;
-            orderService = _orderService;
+            _cartService = cartService;
+            _userService = userService;
+            _userVisitorService = userVisitorService;
+            _orderService = orderService;
+            _stripeService = stripeService;
             logger = _logger;
         }
 
@@ -54,11 +61,11 @@ namespace ShirtStoreService.Controllers
                 return Unauthorized();
 
             StoreModel.Checkout.Order order;
-            string ipAddress = GetIpValue();
+            string ipAddress = _userVisitorService.GetIpValue();
 
             try
             {
-                order = await orderService.CreateOrder(userUid, ipAddress).ConfigureAwait(false);
+                order = await _orderService.CreateOrder(userUid, ipAddress).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -70,6 +77,28 @@ namespace ShirtStoreService.Controllers
         }
 
         [Authorize]
+        [HttpGet("stripesessiontest")]
+        public async Task<IActionResult> StripeSessionTest()
+        {
+            var userUid = GetUserUid();
+            if (userUid == Guid.Empty)
+                return Unauthorized();
+            string sessionId;
+
+            try
+            {
+                sessionId = await _stripeService.CreateSessionTest().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex.Message, ex);
+                return BadRequest();
+            }
+
+            return Ok(sessionId);
+        }
+
+        [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetOrder()
         {
@@ -77,9 +106,7 @@ namespace ShirtStoreService.Controllers
             if (userUid == Guid.Empty)
                 return Unauthorized();
 
-            string ipAddress = GetIpValue();
-
-            var order = await orderService.GetOrder(userUid, 1).ConfigureAwait(false);
+            var order = await _orderService.GetOrder(userUid, 1).ConfigureAwait(false);
             return Ok(order);
         }
 
@@ -91,8 +118,7 @@ namespace ShirtStoreService.Controllers
             if (userUid == Guid.Empty)
                 return Unauthorized();
 
-            var order = await orderService.GetOrder(userUid, 1).ConfigureAwait(false);
-            await orderService.ProcessOrder(order).ConfigureAwait(false);
+            await _orderService.ProcessOrder(checkout, userUid).ConfigureAwait(false);
 
             return Ok();
         }
