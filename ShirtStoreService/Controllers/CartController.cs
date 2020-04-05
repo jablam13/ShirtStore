@@ -21,12 +21,9 @@ namespace ShirtStoreService.Controllers
         private readonly IUserVisitorService _userVisitorService;
 
         public CartController(
-            IOptions<AppSettings> appSettings,
-            IHttpContextAccessor httpContextAccessor,
             IUserVisitorService userVisitorService,
-            IAccountService userService,
             IOrderService orderService,
-            ICartService cartService) : base(appSettings, httpContextAccessor, userService)
+            ICartService cartService)
         {
             _cartService = cartService;
             _orderService = orderService;
@@ -62,18 +59,6 @@ namespace ShirtStoreService.Controllers
         public async Task<Guid> RemoveCartItem(Guid uid)
         {
             return await _cartService.RemoveCartItem(uid).ConfigureAwait(false);
-        }
-
-        [HttpPost("submit")]
-        public async Task<IActionResult> CreateOrder()
-        {
-            var userUid = GetUserUid();
-            if (userUid == Guid.Empty)
-                return Unauthorized();
-
-            var order = await _orderService.GetOrder(userUid, 1);
-
-            return Ok(order);
         }
     }
 }

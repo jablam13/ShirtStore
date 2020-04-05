@@ -27,11 +27,6 @@ DECLARE @OrderId TABLE ([Id] INT);
 DECLARE @UserId INT = (SELECT Id FROM SiteUser WHERE [Uid] = @UserUid AND SiteId = @SiteId);
 DECLARE @Email NVARCHAR(200) = (SELECT EmailAddress FROM SiteUser WHERE [Uid] = @UserUid AND SiteId = @SiteId);
 
---IF EXISTS(SELECT * FROM Orders WHERE UserId = @UserId AND OrderStateId = 1)
-BEGIN
-    UPDATE Orders SET OrderStateId = 4, LastModifiedDate = GETDATE() WHERE UserId = @UserId;
-END;
-
 INSERT INTO Orders
 OUTPUT INSERTED.[Id] INTO @OrderId
 SELECT NEWID(), @UserId, NULL, NULL, @Email, 1, GETDATE(), NULL, NULL, NULL, NULL, 0.00, NULL, 8.99, NULL, 0.00, @IPAddress, GETDATE(), GETDATE();

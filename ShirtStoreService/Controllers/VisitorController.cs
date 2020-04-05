@@ -20,10 +20,8 @@ namespace ShirtStoreService.Controllers
         private readonly ILogger<AccountController> logger;
 
         public VisitorController(
-            IOptions<AppSettings> _appSettings,
-            IHttpContextAccessor _httpContextAccessor,
             IAccountService _userService,
-            ILogger<AccountController> _logger) : base(_appSettings, _httpContextAccessor, _userService)
+            ILogger<AccountController> _logger)
         {
             logger = _logger;
             userService = _userService;

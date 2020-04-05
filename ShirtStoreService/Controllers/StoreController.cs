@@ -22,10 +22,7 @@ namespace ShirtStoreService.Controllers
 
         public StoreController(
             IStoreService storeService,
-            IUserVisitorService userVisitorService,
-            IOptions<AppSettings> _appSettings,
-            IHttpContextAccessor _httpContextAccessor,
-            IAccountService _userService) : base(_appSettings, _httpContextAccessor, _userService)
+            IUserVisitorService userVisitorService)
         {
             _storeService = storeService;
             _userVisitorService = userVisitorService;
@@ -37,8 +34,8 @@ namespace ShirtStoreService.Controllers
         public IActionResult GetStore(Guid? _storeUid)
         {
             var storeUid = _storeUid.HasValue ? _storeUid.Value : defaultStoreUid;
-            userUid = GetUserUid();
-            visitorUid = _userVisitorService.GetVisitorUid().Result;
+            var userUid = GetUserUid();
+            var visitorUid = _userVisitorService.GetVisitorUid().Result;
 
             // return storeUid != Guid.Empty ? storeService.GetStore(storeUid, userUid, visitorUid) : new Store();
             return Ok(_storeService.GetStore(storeUid, userUid, visitorUid));

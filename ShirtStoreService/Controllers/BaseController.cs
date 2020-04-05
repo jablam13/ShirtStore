@@ -16,28 +16,14 @@ using System.Diagnostics;
 namespace ShirtStoreService.Controllers
 {
     //[Route("api/[controller]")]
-    public class BaseController : Controller
+    public abstract class BaseController : Controller
     {
-
-        protected Guid visitorUid = Guid.Empty;
-        protected Guid userUid = Guid.Empty;
-        private readonly AppSettings _appSettings;
-        private readonly IAccountService accountService;
-        private readonly IHttpContextAccessor httpContextAccessor;
-
-        public BaseController(IOptions<AppSettings> appSettings, IHttpContextAccessor _httpContextAccessor, IAccountService _accountService)
-        {
-            accountService = _accountService;
-            _appSettings = appSettings.Value;
-            httpContextAccessor = _httpContextAccessor;
-        }
-
         protected Guid GetUserUid()
         {
+            Guid userUid = Guid.Empty;
             if (User != null && (User?.Claims?.Count() ?? 0) > 0)
-            {
-                Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier).Value.ToString(), out userUid);
-            }
+                Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier).Value, out userUid);
+
             return userUid;
         }
 

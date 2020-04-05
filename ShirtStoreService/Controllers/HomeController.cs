@@ -17,11 +17,7 @@ namespace ShirtStoreService.Controllers
     {
         private readonly ILogger<HomeController> _logger;
 
-        public HomeController(
-            IOptions<AppSettings> appSettings,
-            IHttpContextAccessor _httpContextAccessor,
-            ILogger<HomeController> logger,
-            IAccountService userService) : base(appSettings, _httpContextAccessor, userService)
+        public HomeController(ILogger<HomeController> logger)
         {
             _logger = logger;
         }

@@ -1,21 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
-using Braintree;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PaymentService.Braintree;
 using PaymentService.Stripe;
-using StoreModel.Account;
 using StoreModel.Checkout;
-using StoreModel.Generic;
-using StoreModel.Store;
 using StoreService.Interface;
 using Stripe;
 
@@ -26,26 +17,17 @@ namespace ShirtStoreService.Controllers
     [Route("api/[controller]")]
     public class CheckoutController : BaseController
     {
-        private readonly ICartService _cartService;
-        private readonly IAccountService _userService;
         private readonly IOrderService _orderService;
         private readonly IUserVisitorService _userVisitorService;
-        private readonly IBraintreeService _braintreeGateway;
         private readonly IStripeService _stripeService;
         private readonly ILogger<CheckoutController> logger;
 
         public CheckoutController(
-            ICartService cartService,
             IOrderService orderService,
             IUserVisitorService userVisitorService,
-            IOptions<AppSettings> appSettings,
-            IHttpContextAccessor _httpContextAccessor,
             ILogger<CheckoutController> _logger,
-            IStripeService stripeService,
-            IAccountService userService) : base(appSettings, _httpContextAccessor, userService)
+            IStripeService stripeService)
         {
-            _cartService = cartService;
-            _userService = userService;
             _userVisitorService = userVisitorService;
             _orderService = orderService;
             _stripeService = stripeService;

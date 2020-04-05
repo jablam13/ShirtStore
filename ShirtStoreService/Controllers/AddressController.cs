@@ -21,11 +21,9 @@ namespace ShirtStoreService.Controllers
         private readonly ILogger<AddressController> logger;
 
         public AddressController(
-            IOptions<AppSettings> _appSettings,
-            IHttpContextAccessor _httpContextAccessor,
             IAccountService _userService,
             IAddressService _addressService,
-            ILogger<AddressController> _logger) : base(_appSettings, _httpContextAccessor, _userService)
+            ILogger<AddressController> _logger)
         {
             logger = _logger;
             userService = _userService;
